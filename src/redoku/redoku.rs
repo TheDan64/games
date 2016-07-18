@@ -1,3 +1,4 @@
+use std::fmt;
 use std::ops::{Index, IndexMut};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -92,7 +93,7 @@ impl IndexMut<(usize, usize)> for CellBlock {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 pub struct Redoku {
     difficulty: Difficulty,
     cell_blocks: [CellBlock; 9],
@@ -127,7 +128,6 @@ impl Redoku {
         let val = self[(x, y)];
 
         if val.is_none() {
-            println!("Exit 0: {:?}", val);
             return false;
         }
 
@@ -138,7 +138,6 @@ impl Redoku {
             }
 
             if self[(scanx, y)].is_some() && self[(scanx, y)] == val {
-                println!("Exit 1: {},{}:{:?} == {},{}:{:?}", x, y, val, scanx, y, self[(scanx, y)]);
                 return false;
             }
         }
@@ -149,17 +148,14 @@ impl Redoku {
             }
 
             if self[(x, scany)].is_some() && self[(x, scany)] == val {
-                println!("Exit 2");
                 return false;
             }
         }
 
         // See if there is the same value in same cell block
         let (blockx, blocky) = (x / 3, y / 3);
-        println!("{},{} belongs in Block: {},{}", x, y, blockx, blocky);
         let (startx, starty) = (blockx * 3, blocky * 3);
         let (endx, endy) = (startx + 3, starty + 3);
-        println!("Range: {}-{}, {}-{}", startx, endx, starty, endy);
 
         for scanx in startx..endx {
             for scany in starty..endy {
@@ -167,10 +163,7 @@ impl Redoku {
                     continue;
                 }
 
-                println!("Checking Block {}, {}", scanx, scany);
-
                 if self[(scanx, scany)].is_some() && self[(scanx, scany)] == val {
-                    println!("Exit 3");
                     return false;
                 }
             }
@@ -217,6 +210,44 @@ impl IndexMut<(usize, usize)> for Redoku {
             (6...8, 6...8) => &mut self.cell_blocks[8][(x % 3, y % 3)],
             _ => panic!("Index values ({}, {}) are out of bounds", x, y)
         }
+    }
+}
+
+impl fmt::Debug for Redoku {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use std::char;
+
+        let mut string = String::new();
+
+        string.push_str("\n _____________________ ");
+        string.push_str("\n/                     \\");
+
+        for y in 0..9 {
+            string.push_str("\n");
+
+            for x in 0..9 {
+                string.push_str("|");
+
+                if x == 3 || x == 6 {
+                    string.push_str(" |");
+                }
+
+                string.push_str(&format!("{}", match self[(x, y)] {
+                    Some(val) => char::from_digit(val as u32, 10).unwrap(),
+                    None => '?',
+                }));
+            }
+
+            string.push_str("|");
+
+            if y == 2 || y == 5 {
+                string.push_str("\n|                     |");
+            }
+        }
+
+        string.push_str("\n\\_____________________/");
+
+        write!(f, "{}", string)
     }
 }
 
