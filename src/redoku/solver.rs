@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use test::Bencher;
 
 use redoku::CellValue;
 use redoku::CellValue::*;
@@ -11,25 +12,21 @@ enum Solution {
     Unique(Redoku),
 }
 
-struct RedokuSolver {
-
+trait RedokuSolver {
+    fn depth_first_search(redoku: &mut Redoku, x: usize, y: usize) -> Solution;
+    fn find_unique_solution(&self) -> Option<Redoku>;
+    fn has_unique_solution(&self) -> bool;
 }
 
-impl RedokuSolver {
-    fn depth_first_search(&self, redoku: &mut Redoku, x: usize, y: usize) -> Solution {
+impl RedokuSolver for Redoku {
+    fn depth_first_search(redoku: &mut Redoku, x: usize, y: usize) -> Solution {
         use self::Solution::*;
 
-        let no_cell_value = redoku[(x, y)] == None;
-
-        let iterations = if no_cell_value {
-            9
+        let (iterations, no_starting_value) = if redoku[(x, y)] == None {
+            (9, true)
         } else {
-            1
+            (1, false)
         };
-
-        let mut solution = None;
-
-        println!("Trying to place at {}, {}", x, y);
 
         let (nextx, nexty) = if x == 8 {
             (0, y + 1)
@@ -37,8 +34,10 @@ impl RedokuSolver {
             (x + 1, y)
         };
 
+        let mut solution = None;
+
         for i in 0..iterations {
-            if no_cell_value {
+            if no_starting_value {
                 redoku[(x, y)] = Some(CellValue::from_usize(i + 1));
 
                 if !redoku.is_valid_cell(x, y) {
@@ -46,64 +45,71 @@ impl RedokuSolver {
 
                     continue;
                 }
-
-                println!("{:?} may be valid at {}, {}!", redoku[(x, y)], x, y);
             }
 
             if redoku.empty_cells() == 0 {
                 return Unique(*redoku);
             }
 
-            match self.depth_first_search(redoku, nextx, nexty) {
+            match Redoku::depth_first_search(redoku, nextx, nexty) {
                 NonUnique => return NonUnique,
                 Unique(sol) => {
                     match solution {
-                        Some(Unique(_)) => {
-                            panic!("Found NonUnique solution"); // DEBUG
-                            return NonUnique
-                        },
+                        Some(Unique(_)) => return NonUnique,
                         None => solution = Some(Unique(sol)),
                         _ => unreachable!("Logic error: solution set to non unique")
                     }
                 },
-                Incomplete(sol) => (),
+                Incomplete(_) => (),
             };
+        }
+
+        if no_starting_value {
+            redoku[(x, y)] = None;
         }
 
         match solution {
             Some(Unique(sol)) => Unique(sol),
-            Some(NonUnique) => unreachable!("Logic error: NonUnique at EODFS"),
-            Some(Incomplete(_)) => unreachable!("Logic error: Incomplete at EODFS"),
-            None => {
-                println!("Incomplete with remaining cells: {}", redoku.empty_cells());
-                println!("{:?}", redoku);
-
-                Incomplete(*redoku)
-            },
+            Some(NonUnique) => unreachable!("Logic error: NonUnique set as solution"),
+            Some(Incomplete(_)) => unreachable!("Logic error: Incomplete set as solution"),
+            None => Incomplete(*redoku),
         }
     }
 
-    pub fn find_unique_solution(&self, redoku: &Redoku) -> Option<Redoku> {
+    fn find_unique_solution(&self) -> Option<Redoku> {
         use self::Solution::*;
 
-        match self.depth_first_search(&mut redoku.clone(), 0, 0) {
+        match Redoku::depth_first_search(&mut self.clone(), 0, 0) {
             Incomplete(_) => unreachable!("Logic error: Incomplete at top level"),
             Unique(redoku) => Some(redoku),
             NonUnique => None,
         }
     }
 
-    pub fn has_unique_solution(&self, redoku: &Redoku) -> bool {
-        if let Some(_) = self.find_unique_solution(redoku) {
-            return true;
+    fn has_unique_solution(&self) -> bool {
+        match self.find_unique_solution() {
+            Some(_) => true,
+            None => false,
         }
-
-        false
     }
 }
 
 #[test]
-fn test_solve_very_easy_redoku() {
+fn test_no_unique_solution() {
+    let mut redoku = Redoku::new();
+
+    redoku[(0, 0)] = Some(One);
+    // redoku[(0, 1)] = Some(One); // TODO: Solver maybe should check for invalid start state
+
+    redoku[(1, 1)] = Some(Seven);
+
+    redoku[(7, 6)] = Some(Three);
+
+    assert!(!redoku.has_unique_solution());
+}
+
+#[bench]
+fn test_solves_very_easy_redoku(b: &mut Bencher) {
     let mut redoku = Redoku::new();
 
     redoku[(1, 0)] = Some(Six);
@@ -166,13 +172,11 @@ fn test_solve_very_easy_redoku() {
     redoku[(5, 8)] = Some(Eight);
     redoku[(6, 8)] = Some(Two);
 
-    let solver = RedokuSolver {};
-
-    assert!(solver.has_unique_solution(&redoku))
+    b.iter(|| { assert!(redoku.has_unique_solution()) })
 }
 
-#[test]
-fn test_solve_easy_redoku() {
+#[bench]
+fn test_solves_easy_redoku(b: &mut Bencher) {
     let mut redoku = Redoku::new();
 
     redoku[(0, 0)] = Some(Two);
@@ -224,21 +228,62 @@ fn test_solve_easy_redoku() {
 
     redoku[(4, 8)] = Some(Three);
 
-
-    let solver = RedokuSolver {};
-
-    assert!(solver.has_unique_solution(&redoku));
+    b.iter(|| { assert!(redoku.has_unique_solution()) })
 }
 
-#[test]
-fn test_medium_redoku() {
+#[bench]
+fn test_solves_medium_redoku(b: &mut Bencher) {
     let mut redoku = Redoku::new();
 
-    // TODO
+    redoku[(1, 0)] = Some(Nine);
+    redoku[(3, 0)] = Some(Six);
+    redoku[(5, 0)] = Some(One);
+
+    redoku[(4, 1)] = Some(Three);
+    redoku[(6, 1)] = Some(Nine);
+    redoku[(8, 1)] = Some(One);
+
+    redoku[(1, 2)] = Some(Three);
+    redoku[(3, 2)] = Some(Two);
+    redoku[(5, 2)] = Some(Eight);
+
+    redoku[(0, 3)] = Some(Seven);
+    redoku[(2, 3)] = Some(Nine);
+    redoku[(8, 3)] = Some(Four);
+
+    redoku[(1, 4)] = Some(Four);
+    redoku[(3, 4)] = Some(Three);
+    redoku[(5, 4)] = Some(Seven);
+    redoku[(7, 4)] = Some(Nine);
+
+    redoku[(0, 5)] = Some(Eight);
+    redoku[(2, 5)] = Some(Three);
+    redoku[(4, 5)] = Some(One);
+    redoku[(6, 5)] = Some(Five);
+    redoku[(8, 5)] = Some(Seven);
+
+    redoku[(1, 6)] = Some(Five);
+    redoku[(3, 6)] = Some(Seven);
+    redoku[(5, 6)] = Some(Two);
+    redoku[(7, 6)] = Some(One);
+
+    redoku[(0, 7)] = Some(Nine);
+    redoku[(2, 7)] = Some(Four);
+    redoku[(4, 7)] = Some(Five);
+    redoku[(6, 7)] = Some(Seven);
+    redoku[(8, 7)] = Some(Six);
+
+    redoku[(1, 8)] = Some(One);
+    redoku[(3, 8)] = Some(Nine);
+    redoku[(5, 8)] = Some(Six);
+    redoku[(7, 8)] = Some(Five);
+    redoku[(8, 8)] = Some(Eight);
+
+    b.iter(|| { assert!(redoku.has_unique_solution()) })
 }
 
-#[test]
-fn test_solve_hard_redoku() {
+#[bench]
+fn test_solves_hard_redoku(b: &mut Bencher) {
     let mut redoku = Redoku::new();
 
     redoku[(7, 0)] = Some(Three);
@@ -278,15 +323,46 @@ fn test_solve_hard_redoku() {
     redoku[(7, 8)] = Some(Five);
     redoku[(8, 8)] = Some(Six);
 
-    let solver = RedokuSolver {};
-
-    assert!(solver.has_unique_solution(&redoku))
+    b.iter(|| { assert!(redoku.has_unique_solution()) })
 }
 
-#[test]
-fn test_evil_redoku() {
+#[bench]
+fn test_solves_evil_redoku(b: &mut Bencher) {
     let mut redoku = Redoku::new();
 
-    // TODO
+    redoku[(6, 1)] = Some(Five);
+    redoku[(7, 1)] = Some(Two);
+    redoku[(8, 1)] = Some(Three);
+
+    redoku[(7, 2)] = Some(One);
+    redoku[(8, 2)] = Some(Eight);
+
+    redoku[(2, 4)] = Some(Nine);
+    redoku[(4, 4)] = Some(Seven);
+    redoku[(5, 4)] = Some(Four);
+    redoku[(7, 4)] = Some(Six);
+
+    redoku[(2, 5)] = Some(Four);
+    redoku[(3, 5)] = Some(Six);
+    redoku[(4, 5)] = Some(One);
+    redoku[(8, 5)] = Some(Seven);
+
+    redoku[(1, 6)] = Some(Five);
+    redoku[(2, 6)] = Some(Eight);
+    redoku[(4, 6)] = Some(Four);
+    redoku[(5, 6)] = Some(Three);
+
+    redoku[(1, 7)] = Some(Four);
+    redoku[(4, 7)] = Some(Two);
+    redoku[(7, 7)] = Some(Three);
+
+    redoku[(1, 8)] = Some(Six);
+    redoku[(2, 8)] = Some(Seven);
+    redoku[(4, 8)] = Some(Eight);
+    redoku[(5, 8)] = Some(One);
+    redoku[(7, 8)] = Some(Nine);
+    redoku[(8, 8)] = Some(Four);
+
+    b.iter(|| { assert!(redoku.has_unique_solution()) })
 }
 

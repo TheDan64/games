@@ -219,8 +219,7 @@ impl fmt::Debug for Redoku {
 
         let mut string = String::new();
 
-        string.push_str("\n _____________________ ");
-        string.push_str("\n/                     \\");
+        string.push_str("/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\\");
 
         for y in 0..9 {
             string.push_str("\n");
