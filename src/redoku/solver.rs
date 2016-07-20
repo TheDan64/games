@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+#[cfg(test)]
 use test::Bencher;
 
 use redoku::CellValue;
@@ -12,17 +13,17 @@ enum Solution {
     Unique(Redoku),
 }
 
-trait RedokuSolver {
-    fn depth_first_search(redoku: &mut Redoku, x: usize, y: usize) -> Solution;
-    fn find_unique_solution(&self) -> Option<Redoku>;
+pub trait RedokuSolver<R, S> {
+    fn depth_first_search(&mut self, x: usize, y: usize) -> S;
+    fn find_unique_solution(&self) -> Option<R>;
     fn has_unique_solution(&self) -> bool;
 }
 
-impl RedokuSolver for Redoku {
-    fn depth_first_search(redoku: &mut Redoku, x: usize, y: usize) -> Solution {
+impl RedokuSolver<Redoku, Solution> for Redoku {
+    fn depth_first_search(&mut self, x: usize, y: usize) -> Solution {
         use self::Solution::*;
 
-        let (iterations, no_starting_value) = if redoku[(x, y)] == None {
+        let (iterations, no_starting_value) = if self[(x, y)] == None {
             (9, true)
         } else {
             (1, false)
@@ -38,20 +39,20 @@ impl RedokuSolver for Redoku {
 
         for i in 0..iterations {
             if no_starting_value {
-                redoku[(x, y)] = Some(CellValue::from_usize(i + 1));
+                self[(x, y)] = Some(CellValue::from_usize(i + 1));
 
-                if !redoku.is_valid_cell(x, y) {
-                    redoku[(x, y)] = None;
+                if !self.is_valid_cell(x, y) {
+                    self[(x, y)] = None;
 
                     continue;
                 }
             }
 
-            if redoku.empty_cells() == 0 {
-                return Unique(*redoku);
+            if self.empty_cells() == 0 {
+                return Unique(*self);
             }
 
-            match Redoku::depth_first_search(redoku, nextx, nexty) {
+            match self.depth_first_search(nextx, nexty) {
                 NonUnique => return NonUnique,
                 Unique(sol) => {
                     match solution {
@@ -65,21 +66,25 @@ impl RedokuSolver for Redoku {
         }
 
         if no_starting_value {
-            redoku[(x, y)] = None;
+            self[(x, y)] = None;
         }
 
         match solution {
             Some(Unique(sol)) => Unique(sol),
             Some(NonUnique) => unreachable!("Logic error: NonUnique set as solution"),
             Some(Incomplete(_)) => unreachable!("Logic error: Incomplete set as solution"),
-            None => Incomplete(*redoku),
+            None => Incomplete(*self),
         }
     }
 
     fn find_unique_solution(&self) -> Option<Redoku> {
         use self::Solution::*;
 
-        match Redoku::depth_first_search(&mut self.clone(), 0, 0) {
+        // TODO: Ensure valid start state? Result<Option<Redoku>, ?>?
+
+        let mut redoku = self.clone();
+
+        match redoku.depth_first_search(0, 0) {
             Incomplete(_) => unreachable!("Logic error: Incomplete at top level"),
             Unique(redoku) => Some(redoku),
             NonUnique => None,
@@ -99,7 +104,6 @@ fn test_no_unique_solution() {
     let mut redoku = Redoku::new();
 
     redoku[(0, 0)] = Some(One);
-    // redoku[(0, 1)] = Some(One); // TODO: Solver maybe should check for invalid start state
 
     redoku[(1, 1)] = Some(Seven);
 
