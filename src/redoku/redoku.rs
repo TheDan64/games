@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fmt;
 use std::ops::{Index, IndexMut};
 
@@ -8,10 +9,9 @@ pub enum Difficulty {
     Medium,
     Hard,
     Evil,
-    Random,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum CellValue {
     One   = 1,
     Two   = 2,
@@ -93,83 +93,62 @@ impl IndexMut<(usize, usize)> for CellBlock {
     }
 }
 
-#[derive(Copy, Clone, PartialEq)]
+// REVIEW: Maybe it makes more sense to do [CellValue; 81]? or [[CellValue; 9]; 9]?
+// Cell/CellBlocks haven't been of particular need so far even
+// though they seemed like a good idea initially.
+#[derive(Clone, PartialEq)]
 pub struct Redoku {
     difficulty: Difficulty,
     cell_blocks: [CellBlock; 9],
+    row_values: HashSet<(usize, CellValue)>,
+    column_values: HashSet<(usize, CellValue)>,
+    block_values: HashSet<(usize, usize, CellValue)>,
 }
 
 impl Redoku {
-    pub fn new() -> Redoku {
+    pub fn new(difficulty: Difficulty) -> Redoku {
         Redoku {
-            difficulty: Difficulty::Random,
+            difficulty: difficulty,
             cell_blocks: [CellBlock::new(); 9],
+            row_values: HashSet::with_capacity(81),
+            column_values: HashSet::with_capacity(81),
+            block_values: HashSet::with_capacity(81),
+        }
+    }
+
+    pub fn place_if_valid(&mut self, x: usize, y: usize, value: Option<CellValue>) -> bool {
+        let original_value = self[(x, y)];
+
+        match value {
+            Some(val) => {
+                if !self.column_values.contains(&(x, val)) && !self.row_values.contains(&(y, val)) && !self.block_values.contains(&(x / 3, y / 3, val)) {
+                    self.column_values.insert((x, val));
+                    self.row_values.insert((y, val));
+                    self.block_values.insert((x / 3, y / 3, val));
+
+                    self[(x, y)] = Some(val);
+
+                    return true;
+                }
+
+                false
+            },
+            None => {
+                if let Some(val) = original_value {
+                    self.column_values.remove(&(x, val));
+                    self.row_values.remove(&(y, val));
+                    self.block_values.remove(&(x / 3, y / 3, val));
+
+                    self[(x, y)] = None;
+                }
+
+                true
+            }
         }
     }
 
     pub fn empty_cells(&self) -> usize {
-        // Maybe we can somehow keep track of this on indexes?
-        // That way we could get this in constant time (Set.len())
-
-        let mut count = 0;
-
-        for x in 0..9 {
-            for y in 0..9 {
-                if self[(x, y)] == None {
-                    count += 1;
-                }
-            }
-        }
-
-        count
-    }
-
-    pub fn is_valid_cell(&self, x: usize, y: usize) -> bool {
-        let val = self[(x, y)];
-
-        if val.is_none() {
-            return false;
-        }
-
-        // See if there is the same value in row and column
-        for scanx in 0..9 {
-            if scanx == x {
-                continue;
-            }
-
-            if self[(scanx, y)].is_some() && self[(scanx, y)] == val {
-                return false;
-            }
-        }
-
-        for scany in 0..9 {
-            if scany == y {
-                continue;
-            }
-
-            if self[(x, scany)].is_some() && self[(x, scany)] == val {
-                return false;
-            }
-        }
-
-        // See if there is the same value in same cell block
-        let (blockx, blocky) = (x / 3, y / 3);
-        let (startx, starty) = (blockx * 3, blocky * 3);
-        let (endx, endy) = (startx + 3, starty + 3);
-
-        for scanx in startx..endx {
-            for scany in starty..endy {
-                if scanx == x && scany == y {
-                    continue;
-                }
-
-                if self[(scanx, scany)].is_some() && self[(scanx, scany)] == val {
-                    return false;
-                }
-            }
-        }
-
-        true
+        81 - self.row_values.len()
     }
 }
 
@@ -252,7 +231,7 @@ impl fmt::Debug for Redoku {
 
 #[test]
 fn test_indexing() {
-    let mut redoku = Redoku::new();
+    let mut redoku = Redoku::new(Difficulty::Easy);
 
     for x in 0..9 {
         for y in 0..9 {
@@ -272,42 +251,23 @@ fn test_indexing() {
 }
 
 #[test]
-fn test_is_valid_cell() {
+fn test_place_if_valid() {
     use self::CellValue::*;
 
-    let mut redoku = Redoku::new();
+    let mut redoku = Redoku::new(Difficulty::Easy);
 
     // Test column
-    redoku[(1, 1)] = Some(One);
+    assert!(redoku.place_if_valid(1, 1, Some(One)));
 
-    assert!(redoku.is_valid_cell(1, 1));
-    assert!(!redoku.is_valid_cell(8, 1));
-
-    redoku[(8, 1)] = Some(One);
-
-    assert!(!redoku.is_valid_cell(1, 1));
-    assert!(!redoku.is_valid_cell(8, 1));
-
-    redoku[(8, 1)] = None;
-
-    assert!(redoku.is_valid_cell(1, 1));
+    assert!(!redoku.place_if_valid(8, 1, Some(One)));
 
     // Test row
-    redoku[(1, 8)] = Some(One);
-
-    assert!(!redoku.is_valid_cell(1, 1));
-
-    redoku[(1, 8)] = None;
-
-    assert!(redoku.is_valid_cell(1, 1));
+    assert!(!redoku.place_if_valid(1, 8, Some(One)));
 
     // Test block
-    redoku[(0, 7)] = Some(One);
+    assert!(redoku.place_if_valid(0, 7, Some(One)));
 
-    assert!(redoku.is_valid_cell(0, 7));
+    assert!(!redoku.place_if_valid(2, 8, Some(One)));
 
-    redoku[(2, 8)] = Some(One);
-
-    assert!(!redoku.is_valid_cell(0, 7));
-    assert!(!redoku.is_valid_cell(2, 8));
+    assert!(redoku.place_if_valid(1, 1, None));
 }
