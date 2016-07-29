@@ -1,17 +1,10 @@
-use std::collections::HashSet;
+use std::cmp::PartialEq;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
-use std::ops::{Index, IndexMut};
+use std::ops::Index;
+use std::slice::Chunks;
 
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum Difficulty {
-    VeryEasy,
-    Easy,
-    Medium,
-    Hard,
-    Evil,
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Eq, Hash, PartialEq)]
 pub enum CellValue {
     One   = 1,
     Two   = 2,
@@ -41,105 +34,89 @@ impl CellValue {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
-struct Cell {
-    value: Option<CellValue>,
-}
-
-impl Cell {
-    fn new() -> Cell {
-        Cell {
-            value: None
-        }
-    }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq)]
-struct CellBlock {
-    cells: [Cell; 9],
-}
-
-impl CellBlock {
-    fn new() -> CellBlock {
-        CellBlock {
-            cells: [Cell::new(); 9],
-        }
-    }
-}
-
-impl Index<(usize, usize)> for CellBlock {
-    type Output = Option<CellValue>;
-
-    fn index(&self, index: (usize, usize)) -> &Option<CellValue> {
-        let (x, y) = index;
-
-        if x > 2 || y > 2 {
-            panic!("Index values ({}, {}) are out of bounds", x, y);
-        }
-
-        &self.cells[x + 3 * y].value
-    }
-}
-
-impl IndexMut<(usize, usize)> for CellBlock {
-    fn index_mut(&mut self, index: (usize, usize)) -> &mut Option<CellValue> {
-        let (x, y) = index;
-
-        if x > 2 || y > 2 {
-            panic!("Index values ({}, {}) are out of bounds", x, y);
-        }
-
-        &mut self.cells[x + 3 * y].value
-    }
-}
-
-// REVIEW: Maybe it makes more sense to do [CellValue; 81]? or [[CellValue; 9]; 9]?
-// Cell/CellBlocks haven't been of particular need so far even
-// though they seemed like a good idea initially.
-#[derive(Clone, PartialEq)]
 pub struct Redoku {
-    difficulty: Difficulty,
-    cell_blocks: [CellBlock; 9],
+    cells: [Option<CellValue>; 81],
     row_values: HashSet<(usize, CellValue)>,
     column_values: HashSet<(usize, CellValue)>,
     block_values: HashSet<(usize, usize, CellValue)>,
+
+    // row_values: HashMap<usize, HashSet<CellValue>>,
+    // column_values: HashMap<usize, HashSet<CellValue>>,
+    // block_values: HashMap<(usize, usize), HashSet<CellValue>>,
 }
 
 impl Redoku {
-    pub fn new(difficulty: Difficulty) -> Redoku {
+    pub fn new() -> Redoku {
+        // HashMap<..., HashSet<usize>>
+        // let mut row_values = HashMap::with_capacity(9);
+        // let mut column_values = HashMap::with_capacity(9);
+        // let mut block_values = HashMap::with_capacity(9);
+
+        // for i in 0..9 {
+        //     row_values.insert(i, HashSet::with_capacity(9));
+        //     column_values.insert(i, HashSet::with_capacity(9));
+        //     block_values.insert((i % 3, i / 3), HashSet::with_capacity(9));
+        // }
+
+        // Original:
+        let mut row_values = HashSet::with_capacity(81);
+        let mut column_values = HashSet::with_capacity(81);
+        let mut block_values = HashSet::with_capacity(81);
+
+
         Redoku {
-            difficulty: difficulty,
-            cell_blocks: [CellBlock::new(); 9],
-            row_values: HashSet::with_capacity(81),
-            column_values: HashSet::with_capacity(81),
-            block_values: HashSet::with_capacity(81),
+            cells: [None; 81],
+            row_values: row_values,
+            column_values: column_values,
+            block_values: block_values,
         }
     }
 
     pub fn place_if_valid(&mut self, x: usize, y: usize, value: Option<CellValue>) -> bool {
         let original_value = self[(x, y)];
 
+        // HashMap<..., HashSet<usize>>
+        // let mut column_values = self.column_values.get_mut(&x).unwrap();
+        // let mut row_values = self.row_values.get_mut(&y).unwrap();
+        // let mut block_values = self.block_values.get_mut(&(x / 3, y / 3)).unwrap();
+
         match value {
             Some(val) => {
-                if !self.column_values.contains(&(x, val)) && !self.row_values.contains(&(y, val)) && !self.block_values.contains(&(x / 3, y / 3, val)) {
-                    self.column_values.insert((x, val));
-                    self.row_values.insert((y, val));
-                    self.block_values.insert((x / 3, y / 3, val));
+                // HashMap<..., HashSet<usize>>
+                // if column_values.contains(&val) || row_values.contains(&val) || block_values.contains(&val) {
+                //     return false;
+                // }
 
-                    self[(x, y)] = Some(val);
+                // column_values.insert(val);
+                // row_values.insert(val);
+                // block_values.insert(val);
 
-                    return true;
+                // Original
+                if self.column_values.contains(&(x, val)) || self.row_values.contains(&(y, val)) || self.block_values.contains(&(x / 3, y / 3 ,val)) {
+                    return false;
                 }
 
-                false
+                self.column_values.insert((x, val));
+                self.row_values.insert((y, val));
+                self.block_values.insert((x / 3, y / 3, val));
+
+                self.cells[9 * y + x] = Some(val);
+
+                true
             },
             None => {
                 if let Some(val) = original_value {
+                    // HashMap<..., HashSet<usize>>
+                    // column_values.remove(&val);
+                    // row_values.remove(&val);
+                    // block_values.remove(&val);
+
+                    // Original:
                     self.column_values.remove(&(x, val));
                     self.row_values.remove(&(y, val));
                     self.block_values.remove(&(x / 3, y / 3, val));
 
-                    self[(x, y)] = None;
+                    self.cells[9 * y + x] = None;
                 }
 
                 true
@@ -148,7 +125,62 @@ impl Redoku {
     }
 
     pub fn empty_cells(&self) -> usize {
-        81 - self.row_values.len()
+        let mut cells = 81;
+
+        // for i in 0..9 {
+        //     cells -= self.row_values.get(&i).unwrap().len();
+        // }
+
+        cells - self.row_values.len()
+    }
+
+    // pub fn row_values(&self, row: &usize) -> &HashSet<CellValue> {
+    //     if *row > 8 {
+    //         panic!("No such row {} to get values for.", row);
+    //     }
+
+    //     self.row_values.get(row).unwrap()
+    // }
+
+    // pub fn column_values(&self, column: &usize) -> &HashSet<CellValue> {
+    //     if *column > 8 {
+    //         panic!("No such column {} to get values for.", column);
+    //     }
+
+    //     self.column_values.get(column).unwrap()
+    // }
+}
+
+// Clone and PartialEq need to be manually implemented because
+// [T; n] has issues for n > 32
+impl Clone for Redoku {
+    fn clone(&self) -> Redoku {
+        Redoku {
+            cells: self.cells,
+            row_values: self.row_values.clone(),
+            column_values: self.column_values.clone(),
+            block_values: self.block_values.clone(),
+        }
+    }
+}
+
+impl PartialEq for Redoku {
+    fn eq(&self, other: &Redoku) -> bool {
+        for x in 0..9 {
+            for y in 0..9 {
+                if self.cells[9 * y + x] != other.cells[9 * y + x] {
+                    return false;
+                }
+            }
+        }
+
+        self.row_values == other.row_values &&
+        self.column_values == other.column_values &&
+        self.block_values == other.block_values
+    }
+
+    fn ne(&self, other: &Redoku) -> bool {
+        !self.eq(other)
     }
 }
 
@@ -158,37 +190,7 @@ impl Index<(usize, usize)> for Redoku {
     fn index(&self, index: (usize, usize)) -> &Option<CellValue> {
         let (x, y) = index;
 
-        match (x, y) {
-            (0...2, 0...2) => &self.cell_blocks[0][(x, y)],
-            (3...5, 0...2) => &self.cell_blocks[1][(x % 3, y)],
-            (6...8, 0...2) => &self.cell_blocks[2][(x % 3, y)],
-            (0...2, 3...5) => &self.cell_blocks[3][(x, y % 3)],
-            (3...5, 3...5) => &self.cell_blocks[4][(x % 3, y % 3)],
-            (6...8, 3...5) => &self.cell_blocks[5][(x % 3, y % 3)],
-            (0...2, 6...8) => &self.cell_blocks[6][(x, y % 3)],
-            (3...5, 6...8) => &self.cell_blocks[7][(x % 3, y % 3)],
-            (6...8, 6...8) => &self.cell_blocks[8][(x % 3, y % 3)],
-            _ => panic!("Index values ({}, {}) are out of bounds", x, y)
-        }
-    }
-}
-
-impl IndexMut<(usize, usize)> for Redoku {
-    fn index_mut(&mut self, index: (usize, usize)) -> &mut Option<CellValue> {
-        let (x, y) = index;
-
-        match (x, y) {
-            (0...2, 0...2) => &mut self.cell_blocks[0][(x, y)],
-            (3...5, 0...2) => &mut self.cell_blocks[1][(x % 3, y)],
-            (6...8, 0...2) => &mut self.cell_blocks[2][(x % 3, y)],
-            (0...2, 3...5) => &mut self.cell_blocks[3][(x, y % 3)],
-            (3...5, 3...5) => &mut self.cell_blocks[4][(x % 3, y % 3)],
-            (6...8, 3...5) => &mut self.cell_blocks[5][(x % 3, y % 3)],
-            (0...2, 6...8) => &mut self.cell_blocks[6][(x, y % 3)],
-            (3...5, 6...8) => &mut self.cell_blocks[7][(x % 3, y % 3)],
-            (6...8, 6...8) => &mut self.cell_blocks[8][(x % 3, y % 3)],
-            _ => panic!("Index values ({}, {}) are out of bounds", x, y)
-        }
+        &self.cells[y * 9 + x]
     }
 }
 
@@ -231,21 +233,16 @@ impl fmt::Debug for Redoku {
 
 #[test]
 fn test_indexing() {
-    let mut redoku = Redoku::new(Difficulty::Easy);
+    let mut redoku = Redoku::new();
 
     for x in 0..9 {
         for y in 0..9 {
             assert!(redoku[(x, y)] == None);
 
-            redoku[(x, y)] = Some(CellValue::from_usize(x + 1));
-        }
-    }
+            redoku.cells[9 * y + x] = Some(CellValue::from_usize(y + 1));
 
-    for block in 0..9 {
-        for cell in 0..9 {
-            let row = (block % 3) * 3 + cell % 3;
+            assert!(redoku[(x, y)] == Some(CellValue::from_usize(y + 1)));
 
-            assert!(redoku.cell_blocks[block].cells[cell].value == Some(CellValue::from_usize(row + 1)));
         }
     }
 }
@@ -254,7 +251,7 @@ fn test_indexing() {
 fn test_place_if_valid() {
     use self::CellValue::*;
 
-    let mut redoku = Redoku::new(Difficulty::Easy);
+    let mut redoku = Redoku::new();
 
     // Test column
     assert!(redoku.place_if_valid(1, 1, Some(One)));
