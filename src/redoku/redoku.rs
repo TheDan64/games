@@ -36,32 +36,32 @@ impl CellValue {
 
 pub struct Redoku {
     cells: [Option<CellValue>; 81],
-    row_values: HashSet<(usize, CellValue)>,
-    column_values: HashSet<(usize, CellValue)>,
-    block_values: HashSet<(usize, usize, CellValue)>,
+    // row_values: HashSet<(usize, CellValue)>,
+    // column_values: HashSet<(usize, CellValue)>,
+    // block_values: HashSet<(usize, usize, CellValue)>,
 
-    // row_values: HashMap<usize, HashSet<CellValue>>,
-    // column_values: HashMap<usize, HashSet<CellValue>>,
-    // block_values: HashMap<(usize, usize), HashSet<CellValue>>,
+    row_values: HashMap<usize, HashSet<CellValue>>,
+    column_values: HashMap<usize, HashSet<CellValue>>,
+    block_values: HashMap<(usize, usize), HashSet<CellValue>>,
 }
 
 impl Redoku {
     pub fn new() -> Redoku {
         // HashMap<..., HashSet<usize>>
-        // let mut row_values = HashMap::with_capacity(9);
-        // let mut column_values = HashMap::with_capacity(9);
-        // let mut block_values = HashMap::with_capacity(9);
+        let mut row_values = HashMap::with_capacity(9);
+        let mut column_values = HashMap::with_capacity(9);
+        let mut block_values = HashMap::with_capacity(9);
 
-        // for i in 0..9 {
-        //     row_values.insert(i, HashSet::with_capacity(9));
-        //     column_values.insert(i, HashSet::with_capacity(9));
-        //     block_values.insert((i % 3, i / 3), HashSet::with_capacity(9));
-        // }
+        for i in 0..9 {
+            row_values.insert(i, HashSet::with_capacity(9));
+            column_values.insert(i, HashSet::with_capacity(9));
+            block_values.insert((i % 3, i / 3), HashSet::with_capacity(9));
+        }
 
         // Original:
-        let mut row_values = HashSet::with_capacity(81);
-        let mut column_values = HashSet::with_capacity(81);
-        let mut block_values = HashSet::with_capacity(81);
+        // let mut row_values = HashSet::with_capacity(81);
+        // let mut column_values = HashSet::with_capacity(81);
+        // let mut block_values = HashSet::with_capacity(81);
 
 
         Redoku {
@@ -76,29 +76,29 @@ impl Redoku {
         let original_value = self[(x, y)];
 
         // HashMap<..., HashSet<usize>>
-        // let mut column_values = self.column_values.get_mut(&x).unwrap();
-        // let mut row_values = self.row_values.get_mut(&y).unwrap();
-        // let mut block_values = self.block_values.get_mut(&(x / 3, y / 3)).unwrap();
+        let mut column_values = self.column_values.get_mut(&x).unwrap();
+        let mut row_values = self.row_values.get_mut(&y).unwrap();
+        let mut block_values = self.block_values.get_mut(&(x / 3, y / 3)).unwrap();
 
         match value {
             Some(val) => {
                 // HashMap<..., HashSet<usize>>
-                // if column_values.contains(&val) || row_values.contains(&val) || block_values.contains(&val) {
-                //     return false;
-                // }
-
-                // column_values.insert(val);
-                // row_values.insert(val);
-                // block_values.insert(val);
-
-                // Original
-                if self.column_values.contains(&(x, val)) || self.row_values.contains(&(y, val)) || self.block_values.contains(&(x / 3, y / 3 ,val)) {
+                if column_values.contains(&val) || row_values.contains(&val) || block_values.contains(&val) {
                     return false;
                 }
 
-                self.column_values.insert((x, val));
-                self.row_values.insert((y, val));
-                self.block_values.insert((x / 3, y / 3, val));
+                column_values.insert(val);
+                row_values.insert(val);
+                block_values.insert(val);
+
+                // Original
+                // if self.column_values.contains(&(x, val)) || self.row_values.contains(&(y, val)) || self.block_values.contains(&(x / 3, y / 3 ,val)) {
+                //     return false;
+                // }
+
+                // self.column_values.insert((x, val));
+                // self.row_values.insert((y, val));
+                // self.block_values.insert((x / 3, y / 3, val));
 
                 self.cells[9 * y + x] = Some(val);
 
@@ -107,14 +107,14 @@ impl Redoku {
             None => {
                 if let Some(val) = original_value {
                     // HashMap<..., HashSet<usize>>
-                    // column_values.remove(&val);
-                    // row_values.remove(&val);
-                    // block_values.remove(&val);
+                    column_values.remove(&val);
+                    row_values.remove(&val);
+                    block_values.remove(&val);
 
                     // Original:
-                    self.column_values.remove(&(x, val));
-                    self.row_values.remove(&(y, val));
-                    self.block_values.remove(&(x / 3, y / 3, val));
+                    // self.column_values.remove(&(x, val));
+                    // self.row_values.remove(&(y, val));
+                    // self.block_values.remove(&(x / 3, y / 3, val));
 
                     self.cells[9 * y + x] = None;
                 }
@@ -127,11 +127,11 @@ impl Redoku {
     pub fn empty_cells(&self) -> usize {
         let mut cells = 81;
 
-        // for i in 0..9 {
-        //     cells -= self.row_values.get(&i).unwrap().len();
-        // }
+        for i in 0..9 {
+            cells -= self.row_values.get(&i).unwrap().len();
+        }
 
-        cells - self.row_values.len()
+        cells
     }
 
     // pub fn row_values(&self, row: &usize) -> &HashSet<CellValue> {
