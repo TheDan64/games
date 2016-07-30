@@ -58,13 +58,13 @@ impl RedokuGrader for Redoku {
         let mut min_len = 9;
 
         for i in 0..9 {
-            // min_len = min(min_len, self.row_values(&i).len());
+            min_len = min(min_len, self.row_values(&i).len());
 
-            // if min_len == 0 {
-            //     break;
-            // }
+            if min_len == 0 {
+                break;
+            }
 
-            // min_len = min(min_len, self.column_values(&i).len());
+            min_len = min(min_len, self.column_values(&i).len());
 
             if min_len == 0 {
                 break;

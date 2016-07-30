@@ -28,11 +28,11 @@ fn render() {
 fn main() {
     println!("Hello, Redoku!");
 
-    loop {
-        // Check for user input
+    // Test:
+    use utils::get_evil_redoku;
+    use solver::RedokuSolver;
 
-        // Update Game State
+    let redoku = get_evil_redoku();
 
-        // Render
-    }
+    redoku.find_unique_solution();
 }

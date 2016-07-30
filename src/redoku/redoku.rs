@@ -1,10 +1,10 @@
 use std::cmp::PartialEq;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::ops::Index;
 use std::slice::Chunks;
 
-#[derive(Debug, Copy, Clone, Eq, Hash, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub enum CellValue {
     One   = 1,
     Two   = 2,
@@ -36,33 +36,22 @@ impl CellValue {
 
 pub struct Redoku {
     cells: [Option<CellValue>; 81],
-    // row_values: HashSet<(usize, CellValue)>,
-    // column_values: HashSet<(usize, CellValue)>,
-    // block_values: HashSet<(usize, usize, CellValue)>,
-
-    row_values: HashMap<usize, HashSet<CellValue>>,
-    column_values: HashMap<usize, HashSet<CellValue>>,
-    block_values: HashMap<(usize, usize), HashSet<CellValue>>,
+    row_values: BTreeMap<usize, BTreeSet<CellValue>>,
+    column_values: BTreeMap<usize, BTreeSet<CellValue>>,
+    block_values: BTreeMap<(usize, usize), BTreeSet<CellValue>>,
 }
 
 impl Redoku {
     pub fn new() -> Redoku {
-        // HashMap<..., HashSet<usize>>
-        let mut row_values = HashMap::with_capacity(9);
-        let mut column_values = HashMap::with_capacity(9);
-        let mut block_values = HashMap::with_capacity(9);
+        let mut row_values = BTreeMap::new();
+        let mut column_values = BTreeMap::new();
+        let mut block_values = BTreeMap::new();
 
         for i in 0..9 {
-            row_values.insert(i, HashSet::with_capacity(9));
-            column_values.insert(i, HashSet::with_capacity(9));
-            block_values.insert((i % 3, i / 3), HashSet::with_capacity(9));
+            row_values.insert(i, BTreeSet::new());
+            column_values.insert(i, BTreeSet::new());
+            block_values.insert((i % 3, i / 3), BTreeSet::new());
         }
-
-        // Original:
-        // let mut row_values = HashSet::with_capacity(81);
-        // let mut column_values = HashSet::with_capacity(81);
-        // let mut block_values = HashSet::with_capacity(81);
-
 
         Redoku {
             cells: [None; 81],
@@ -75,14 +64,12 @@ impl Redoku {
     pub fn place_if_valid(&mut self, x: usize, y: usize, value: Option<CellValue>) -> bool {
         let original_value = self[(x, y)];
 
-        // HashMap<..., HashSet<usize>>
         let mut column_values = self.column_values.get_mut(&x).unwrap();
         let mut row_values = self.row_values.get_mut(&y).unwrap();
         let mut block_values = self.block_values.get_mut(&(x / 3, y / 3)).unwrap();
 
         match value {
             Some(val) => {
-                // HashMap<..., HashSet<usize>>
                 if column_values.contains(&val) || row_values.contains(&val) || block_values.contains(&val) {
                     return false;
                 }
@@ -91,30 +78,15 @@ impl Redoku {
                 row_values.insert(val);
                 block_values.insert(val);
 
-                // Original
-                // if self.column_values.contains(&(x, val)) || self.row_values.contains(&(y, val)) || self.block_values.contains(&(x / 3, y / 3 ,val)) {
-                //     return false;
-                // }
-
-                // self.column_values.insert((x, val));
-                // self.row_values.insert((y, val));
-                // self.block_values.insert((x / 3, y / 3, val));
-
                 self.cells[9 * y + x] = Some(val);
 
                 true
             },
             None => {
                 if let Some(val) = original_value {
-                    // HashMap<..., HashSet<usize>>
                     column_values.remove(&val);
                     row_values.remove(&val);
                     block_values.remove(&val);
-
-                    // Original:
-                    // self.column_values.remove(&(x, val));
-                    // self.row_values.remove(&(y, val));
-                    // self.block_values.remove(&(x / 3, y / 3, val));
 
                     self.cells[9 * y + x] = None;
                 }
@@ -134,21 +106,21 @@ impl Redoku {
         cells
     }
 
-    // pub fn row_values(&self, row: &usize) -> &HashSet<CellValue> {
-    //     if *row > 8 {
-    //         panic!("No such row {} to get values for.", row);
-    //     }
+    pub fn row_values(&self, row: &usize) -> &BTreeSet<CellValue> {
+        if *row > 8 {
+            panic!("No such row {} to get values for.", row);
+        }
 
-    //     self.row_values.get(row).unwrap()
-    // }
+        self.row_values.get(row).unwrap()
+    }
 
-    // pub fn column_values(&self, column: &usize) -> &HashSet<CellValue> {
-    //     if *column > 8 {
-    //         panic!("No such column {} to get values for.", column);
-    //     }
+    pub fn column_values(&self, column: &usize) -> &BTreeSet<CellValue> {
+        if *column > 8 {
+            panic!("No such column {} to get values for.", column);
+        }
 
-    //     self.column_values.get(column).unwrap()
-    // }
+        self.column_values.get(column).unwrap()
+    }
 }
 
 // Clone and PartialEq need to be manually implemented because
