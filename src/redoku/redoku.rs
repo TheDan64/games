@@ -2,7 +2,6 @@ use std::cmp::PartialEq;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::ops::Index;
-use std::slice::Chunks;
 
 #[derive(Debug, Copy, Clone, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub enum CellValue {
@@ -15,6 +14,13 @@ pub enum CellValue {
     Seven = 7,
     Eight = 8,
     Nine  = 9,
+}
+
+#[derive(Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum Grid {
+    Column(usize),
+    Row(usize),
+    Block(usize),
 }
 
 impl CellValue {
@@ -36,47 +42,58 @@ impl CellValue {
 
 pub struct Redoku {
     cells: [Option<CellValue>; 81],
-    row_values: BTreeMap<usize, BTreeSet<CellValue>>,
-    column_values: BTreeMap<usize, BTreeSet<CellValue>>,
-    block_values: BTreeMap<(usize, usize), BTreeSet<CellValue>>,
+    grid_values: BTreeMap<Grid, BTreeSet<CellValue>>,
 }
 
 impl Redoku {
     pub fn new() -> Redoku {
-        let mut row_values = BTreeMap::new();
-        let mut column_values = BTreeMap::new();
-        let mut block_values = BTreeMap::new();
+        let mut grid_values = BTreeMap::new();
 
         for i in 0..9 {
-            row_values.insert(i, BTreeSet::new());
-            column_values.insert(i, BTreeSet::new());
-            block_values.insert((i % 3, i / 3), BTreeSet::new());
+            grid_values.insert(Grid::Column(i), BTreeSet::new());
+            grid_values.insert(Grid::Row(i), BTreeSet::new());
+            grid_values.insert(Grid::Block(i), BTreeSet::new());
         }
+
 
         Redoku {
             cells: [None; 81],
-            row_values: row_values,
-            column_values: column_values,
-            block_values: block_values,
+            grid_values: grid_values,
         }
+    }
+
+    pub fn can_place(&self, x: usize, y: usize, value: CellValue) -> bool {
+        if self.grid_values.get(&Grid::Column(x)).unwrap().contains(&value) {
+            return false;
+        }
+
+        if self.grid_values.get(&Grid::Row(y)).unwrap().contains(&value) {
+            return false;
+        }
+
+        let (block_x, block_y) = (x / 3, y / 3);
+
+        if self.grid_values.get(&Grid::Block(3 * block_y + block_x)).unwrap().contains(&value) {
+            return false;
+        }
+
+        true
     }
 
     pub fn place_if_valid(&mut self, x: usize, y: usize, value: Option<CellValue>) -> bool {
         let original_value = self[(x, y)];
 
-        let mut column_values = self.column_values.get_mut(&x).unwrap();
-        let mut row_values = self.row_values.get_mut(&y).unwrap();
-        let mut block_values = self.block_values.get_mut(&(x / 3, y / 3)).unwrap();
+        let (block_x, block_y) = (x / 3, y / 3);
 
         match value {
             Some(val) => {
-                if column_values.contains(&val) || row_values.contains(&val) || block_values.contains(&val) {
+                if !self.can_place(x, y, val) {
                     return false;
                 }
 
-                column_values.insert(val);
-                row_values.insert(val);
-                block_values.insert(val);
+                self.grid_values.get_mut(&Grid::Column(x)).unwrap().insert(val);
+                self.grid_values.get_mut(&Grid::Row(y)).unwrap().insert(val);
+                self.grid_values.get_mut(&Grid::Block(3 * block_y + block_x)).unwrap().insert(val);
 
                 self.cells[9 * y + x] = Some(val);
 
@@ -84,9 +101,9 @@ impl Redoku {
             },
             None => {
                 if let Some(val) = original_value {
-                    column_values.remove(&val);
-                    row_values.remove(&val);
-                    block_values.remove(&val);
+                    self.grid_values.get_mut(&Grid::Column(x)).unwrap().remove(&val);
+                    self.grid_values.get_mut(&Grid::Row(y)).unwrap().remove(&val);
+                    self.grid_values.get_mut(&Grid::Block(3 * block_y + block_x)).unwrap().remove(&val);
 
                     self.cells[9 * y + x] = None;
                 }
@@ -100,26 +117,55 @@ impl Redoku {
         let mut cells = 81;
 
         for i in 0..9 {
-            cells -= self.row_values.get(&i).unwrap().len();
+            cells -= self.grid_values.get(&Grid::Block(i)).unwrap().len();
         }
 
         cells
     }
 
-    pub fn row_values(&self, row: &usize) -> &BTreeSet<CellValue> {
-        if *row > 8 {
+    pub fn row_values(&self, row: usize) -> &BTreeSet<CellValue> {
+        if row > 8 {
             panic!("No such row {} to get values for.", row);
         }
 
-        self.row_values.get(row).unwrap()
+        self.grid_values.get(&Grid::Row(row)).unwrap()
     }
 
-    pub fn column_values(&self, column: &usize) -> &BTreeSet<CellValue> {
-        if *column > 8 {
+    pub fn column_values(&self, column: usize) -> &BTreeSet<CellValue> {
+        if column > 8 {
             panic!("No such column {} to get values for.", column);
         }
 
-        self.column_values.get(column).unwrap()
+        self.grid_values.get(&Grid::Column(column)).unwrap()
+    }
+
+    pub fn block_values(&self, block: usize) -> &BTreeSet<CellValue> {
+        if block > 8 {
+            panic!("No such block {} to get values for.", block);
+        }
+
+        self.grid_values.get(&Grid::Block(block)).unwrap()
+    }
+
+    pub fn calculate_impossible_values(&self, x: usize, y: usize) -> BTreeSet<CellValue> {
+        let (block_x, block_y) = (x / 3, y / 3);
+
+        &(self.column_values(x) | self.row_values(y)) | self.block_values(3 * block_y + block_x)
+    }
+
+    pub fn calculate_possible_values(&self, x: usize, y: usize) -> BTreeSet<CellValue> {
+        let mut values = BTreeSet::new();
+        values.insert(CellValue::One);
+        values.insert(CellValue::Two);
+        values.insert(CellValue::Three);
+        values.insert(CellValue::Four);
+        values.insert(CellValue::Five);
+        values.insert(CellValue::Six);
+        values.insert(CellValue::Seven);
+        values.insert(CellValue::Eight);
+        values.insert(CellValue::Nine);
+
+        &values - &self.calculate_impossible_values(x, y)
     }
 }
 
@@ -129,9 +175,7 @@ impl Clone for Redoku {
     fn clone(&self) -> Redoku {
         Redoku {
             cells: self.cells,
-            row_values: self.row_values.clone(),
-            column_values: self.column_values.clone(),
-            block_values: self.block_values.clone(),
+            grid_values: self.grid_values.clone(),
         }
     }
 }
@@ -146,9 +190,7 @@ impl PartialEq for Redoku {
             }
         }
 
-        self.row_values == other.row_values &&
-        self.column_values == other.column_values &&
-        self.block_values == other.block_values
+        self.grid_values == other.grid_values
     }
 
     fn ne(&self, other: &Redoku) -> bool {
@@ -172,16 +214,16 @@ impl fmt::Debug for Redoku {
 
         let mut string = String::new();
 
-        string.push_str("/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\\");
+        string.push_str("┏━━━━━━━━━━━━━━━━━━━━━━━┓");
 
         for y in 0..9 {
-            string.push_str("\n");
+            string.push_str("\n┃");
 
             for x in 0..9 {
-                string.push_str("|");
+                string.push_str("│");
 
                 if x == 3 || x == 6 {
-                    string.push_str(" |");
+                    string.push_str(" │");
                 }
 
                 string.push_str(&format!("{}", match self[(x, y)] {
@@ -190,14 +232,14 @@ impl fmt::Debug for Redoku {
                 }));
             }
 
-            string.push_str("|");
+            string.push_str("│┃");
 
             if y == 2 || y == 5 {
-                string.push_str("\n|                     |");
+                string.push_str("\n┃                       ┃");
             }
         }
 
-        string.push_str("\n\\_____________________/");
+        string.push_str("\n┗━━━━━━━━━━━━━━━━━━━━━━━┛");
 
         write!(f, "{}", string)
     }
@@ -214,7 +256,6 @@ fn test_indexing() {
             redoku.cells[9 * y + x] = Some(CellValue::from_usize(y + 1));
 
             assert!(redoku[(x, y)] == Some(CellValue::from_usize(y + 1)));
-
         }
     }
 }

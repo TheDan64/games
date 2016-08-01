@@ -6,6 +6,7 @@
 #![feature(test)]
 
 extern crate termion;
+#[macro_use]
 extern crate extra;
 extern crate test;
 
@@ -19,6 +20,14 @@ use extra::rand::Randomizer;
 
 struct Game {
     rand: Randomizer
+}
+
+impl Game {
+    fn new() -> Game {
+        Game {
+            rand: Randomizer::new(!0x5AFEC0DE404)
+        }
+    }
 }
 
 fn render() {

@@ -4,9 +4,10 @@ use redoku::CellValue;
 use redoku::CellValue::*;
 use std::ops::Range;
 
-pub fn rand_u8(rand: &mut Randomizer, range: &mut Range<u8>) -> u8 {
+pub fn rand_in_range(rand: &mut Randomizer, mut range: Range<u8>) -> u8 {
     let low = range.next().unwrap();
-    let high = range.last().unwrap();
+    let high = range.last().unwrap() + 1;
+
     let range = high - low;
     let zone = 255 - 255 % range;
 
@@ -19,16 +20,8 @@ pub fn rand_u8(rand: &mut Randomizer, range: &mut Range<u8>) -> u8 {
     }
 }
 
-// Should be a uniform distribution by disallowing values
-// 252 - 255 due to 252 (0 - 251) dividing 9 cleanly
 pub fn random_cell_value(rand: &mut Randomizer) -> CellValue {
-    loop {
-        let val = rand.read_u8();
-
-        if val < 252 {
-            return CellValue::from_usize((val % 9) as usize + 1)
-        }
-    }
+    CellValue::from_usize(rand_in_range(rand, 1..10) as usize)
 }
 
 pub fn get_very_easy_redoku() -> Redoku {
@@ -284,13 +277,24 @@ pub fn get_evil_redoku() -> Redoku {
     redoku
 }
 
-// #[test]
-// fn test_rand_u8() {
-//     let rand = Randomizer::new(0);
+#[test]
+fn test_rand_in_range() {
+    use std::collections::HashSet;
 
-//     for i in 0..9 {
-//         let u = rand_u8(&mut rand, &mut 10..18);
+    let mut rand = Randomizer::new(0);
 
-//         assert!(u >= 10 && u < 18);
-//     }
-// }
+    let mut hash_set = HashSet::with_capacity(6);
+    let correct_hash_set = hashset!(10, 11, 12, 13, 14, 15);
+
+    loop {
+        hash_set.insert(rand_in_range(&mut rand, 10..16));
+
+        if hash_set.len() == 6 {
+            break;
+        }
+
+        println!("{:?}", hash_set);
+    }
+
+    assert!(correct_hash_set.difference(&hash_set).count() == 0);
+}
