@@ -1,12 +1,15 @@
 use extra::rand::Randomizer;
 use redoku::Redoku;
-use redoku::CellValue;
-use redoku::CellValue::*;
+use value::CellValue::*;
+use value::CellValue;
 use std::ops::Range;
 
-pub fn rand_in_range(rand: &mut Randomizer, mut range: Range<u8>) -> u8 {
+pub fn read_u8_in_range(rand: &mut Randomizer, mut range: Range<u8>) -> u8 {
     let low = range.next().unwrap();
     let high = range.last().unwrap() + 1;
+    // TODO: Improve ^
+
+    assert!(low < high);
 
     let range = high - low;
     let zone = 255 - 255 % range;
@@ -15,13 +18,13 @@ pub fn rand_in_range(rand: &mut Randomizer, mut range: Range<u8>) -> u8 {
         let val = rand.read_u8();
 
         if val < zone {
-            return low.wrapping_add(val % range);
+            return low + (val % range);
         }
     }
 }
 
 pub fn random_cell_value(rand: &mut Randomizer) -> CellValue {
-    CellValue::from_usize(rand_in_range(rand, 1..10) as usize)
+    CellValue::from_usize(read_u8_in_range(rand, 1..10) as usize)
 }
 
 pub fn get_very_easy_redoku() -> Redoku {
@@ -286,14 +289,8 @@ fn test_rand_in_range() {
     let mut hash_set = HashSet::with_capacity(6);
     let correct_hash_set = hashset!(10, 11, 12, 13, 14, 15);
 
-    loop {
-        hash_set.insert(rand_in_range(&mut rand, 10..16));
-
-        if hash_set.len() == 6 {
-            break;
-        }
-
-        println!("{:?}", hash_set);
+    while hash_set.len() < 6 {
+        hash_set.insert(read_u8_in_range(&mut rand, 10..16));
     }
 
     assert!(correct_hash_set.difference(&hash_set).count() == 0);

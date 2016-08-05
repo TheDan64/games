@@ -1,6 +1,7 @@
-use redoku::{CellValue, Redoku};
-use redoku::CellValue::*;
+use redoku::Redoku;
 use std::cmp::{max, min};
+use value::CellValue::*;
+use value::CellValue;
 #[cfg(test)]
 use test::Bencher;
 
@@ -24,9 +25,11 @@ fn try_row_col_block_elimination(redoku: &mut Redoku) -> bool {
                 continue;
             }
 
-            let values = redoku.calculate_impossible_values(x, y);
+            let mut values = redoku.calculate_impossible_values(x, y);
+            // let count = values.len();
+            // let sum: usize = values.iter().sum();
 
-            let (count, sum) = values.iter().fold((0, 0), |(a, b), &v| (a + 1, b + v as usize));
+            let (count, sum) = values.iter().fold((0, 0), |(a, b), v| (a + 1, b + v as usize));
 
             // Place the missing value determined from 45 (sum(1...9))
             if count == 8 {
@@ -55,7 +58,74 @@ fn try_lone_ranger(redoku: &mut Redoku) -> bool {
             let mut column_values = row_values.clone();
             let mut block_values = row_values.clone();
 
-            println!("{},{} starting values: {:?}", x, y, row_values);
+            let (block_x, block_y) = (x / 3, y / 3);
+
+            for i in 0..9 {
+                let (row_x, row_y) = (x, i);
+                let (column_x, column_y) = (i, y);
+                let (block_x, block_y) = (block_x * 3 + i % 3, block_y * 3 + i / 3);
+
+                if (row_x, row_y) != (x, y) && redoku[(row_x, row_y)].is_none() {
+                    row_values = row_values - redoku.calculate_possible_values(row_x, row_y);
+                }
+
+                if (column_x, column_y) != (x, y) && redoku[(column_x, column_y)].is_none() {
+                    column_values = column_values - redoku.calculate_possible_values(column_x, column_y);
+                }
+
+                if (block_x, block_y) != (x, y) && redoku[(block_x, block_y)].is_none() {
+                    block_values = block_values - redoku.calculate_possible_values(block_x, block_y);
+                }
+            }
+
+            if row_values.len() == 1 {
+                let value = row_values.iter().next().unwrap();
+
+                if redoku.place_if_valid(x, y, Some(value)) {
+                    success = true;
+                    break;
+                }
+            }
+
+            if column_values.len() == 1 {
+                let value = column_values.iter().next().unwrap();
+
+                if redoku.place_if_valid(x, y, Some(value)) {
+                    success = true;
+                    break;
+                }
+            }
+
+            if block_values.len() == 1 {
+                let value = block_values.iter().next().unwrap();
+
+                if redoku.place_if_valid(x, y, Some(value)) {
+                    success = true;
+                }
+            }
+        }
+    }
+
+    success
+}
+
+fn try_look_for_twins(redoku: &mut Redoku) -> bool {
+    let mut success = false;
+    let mut twins = true;
+
+    return success;
+
+    // TODO: Randomize the range of values for potentially better results
+    // as doing x and y incrementally will favor some paths over others
+    for x in 0..9 {
+        for y in 0..9 {
+            if redoku[(x, y)].is_some() {
+                continue;
+            }
+
+            let mut row_values = redoku.calculate_possible_values(x, y);
+            let mut column_values = row_values.clone();
+            let mut block_values = row_values.clone();
 
             let (block_x, block_y) = (x / 3, y / 3);
 
@@ -65,25 +135,26 @@ fn try_lone_ranger(redoku: &mut Redoku) -> bool {
                 let (block_x, block_y) = (block_x * 3 + i % 3, block_y * 3 + i / 3);
 
                 if (row_x, row_y) != (x, y) && redoku[(row_x, row_y)].is_none() {
-                    row_values = &row_values - &redoku.calculate_possible_values(row_x, row_y);
-                    println!("Row: {:?}", row_values);
+                    let current_values = redoku.calculate_possible_values(row_x, row_y);
+
+                    if current_values == row_values {
+                        success = true;
+                    }
                 }
 
                 if (column_x, column_y) != (x, y) && redoku[(column_x, column_y)].is_none() {
-                    column_values = &column_values - &redoku.calculate_possible_values(column_x, column_y);
-                    println!("Column: {:?}", column_values);
+                    column_values = column_values - redoku.calculate_possible_values(column_x, column_y);
                 }
 
                 if (block_x, block_y) != (x, y) && redoku[(block_x, block_y)].is_none() {
-                    block_values = &block_values - &redoku.calculate_possible_values(block_x, block_y);
-                    println!("Block: {:?}", block_values);
+                    block_values = block_values - redoku.calculate_possible_values(block_x, block_y);
                 }
             }
 
             if row_values.len() == 1 {
                 let value = row_values.iter().next().unwrap();
 
-                if redoku.place_if_valid(x, y, Some(*value)) {
+                if redoku.place_if_valid(x, y, Some(value)) {
                     success = true;
                     break;
                 }
@@ -92,7 +163,7 @@ fn try_lone_ranger(redoku: &mut Redoku) -> bool {
             if column_values.len() == 1 {
                 let value = column_values.iter().next().unwrap();
 
-                if redoku.place_if_valid(x, y, Some(*value)) {
+                if redoku.place_if_valid(x, y, Some(value)) {
                     success = true;
                     break;
                 }
@@ -101,7 +172,7 @@ fn try_lone_ranger(redoku: &mut Redoku) -> bool {
             if block_values.len() == 1 {
                 let value = block_values.iter().next().unwrap();
 
-                if redoku.place_if_valid(x, y, Some(*value)) {
+                if redoku.place_if_valid(x, y, Some(value)) {
                     success = true;
                 }
             }
@@ -192,7 +263,17 @@ fn score_human_solving_techniques(redoku: &Redoku) -> f32 {
             }
         }
 
-        // TODO: More
+        let twins = try_look_for_twins(&mut redoku);
+
+        if twins {
+            max_score = max(max_score , 3);
+
+            if redoku.empty_cells() == 0 {
+                break;
+            }
+        }
+
+        // TODO: Triplets
 
         // If no other method worked, need to brute force to solve. Instead,
         // assuming there is a valid solution means we can skip doing so.
@@ -241,33 +322,63 @@ impl RedokuGrader for Redoku {
 fn test_column_row_block_elimination(b: &mut Bencher) {
     let mut redoku = Redoku::new();
 
-    redoku.place_if_valid(0, 0, Some(Four));
-    redoku.place_if_valid(0, 1, Some(Two));
-    redoku.place_if_valid(0, 2, Some(One));
-    // Empty (0, 3)
-    redoku.place_if_valid(0, 4, Some(Six));
-    redoku.place_if_valid(0, 5, Some(Seven));
-    // Empty (0, 6)
-    redoku.place_if_valid(0, 7, Some(Nine));
-    redoku.place_if_valid(0, 8, Some(Five));
+    assert!(redoku.place_if_valid(0, 1, Some(Six)));
+    assert!(redoku.place_if_valid(0, 3, Some(Four)));
+    assert!(redoku.place_if_valid(0, 4, Some(Five)));
+    assert!(redoku.place_if_valid(0, 7, Some(Eight)));
 
-    redoku.place_if_valid(1, 3, Some(Five));
-    redoku.place_if_valid(1, 4, Some(One));
-    // Empty (1, 5)
+    assert!(redoku.place_if_valid(1, 0, Some(Three)));
+    assert!(redoku.place_if_valid(1, 4, Some(Six)));
+    assert!(redoku.place_if_valid(1, 5, Some(Two)));
+    assert!(redoku.place_if_valid(1, 7, Some(Five)));
+    assert!(redoku.place_if_valid(1, 8, Some(Nine)));
 
-    redoku.place_if_valid(2, 3, Some(Eight));
-    redoku.place_if_valid(2, 4, Some(Four));
-    redoku.place_if_valid(2, 5, Some(Nine));
+    assert!(redoku.place_if_valid(2, 0, Some(Four)));
+    assert!(redoku.place_if_valid(2, 2, Some(One)));
+    assert!(redoku.place_if_valid(2, 3, Some(Nine)));
+    assert!(redoku.place_if_valid(2, 7, Some(Seven)));
 
-    assert!(redoku.empty_cells() == 69);
+    assert!(redoku.place_if_valid(3, 5, Some(Five)));
+    assert!(redoku.place_if_valid(3, 6, Some(Two)));
+    assert!(redoku.place_if_valid(3, 7, Some(Nine)));
+
+    assert!(redoku.place_if_valid(4, 2, Some(Two)));
+    assert!(redoku.place_if_valid(4, 3, Some(Eight)));
+    assert!(redoku.place_if_valid(4, 5, Some(Six)));
+    assert!(redoku.place_if_valid(4, 6, Some(One)));
+
+    assert!(redoku.place_if_valid(5, 1, Some(Eight)));
+    assert!(redoku.place_if_valid(5, 2, Some(Seven)));
+    assert!(redoku.place_if_valid(5, 3, Some(Three)));
+
+    assert!(redoku.place_if_valid(6, 1, Some(Two)));
+    assert!(redoku.place_if_valid(6, 5, Some(Four)));
+    assert!(redoku.place_if_valid(6, 6, Some(Eight)));
+    assert!(redoku.place_if_valid(6, 8, Some(Three)));
+
+    assert!(redoku.place_if_valid(7, 0, Some(Nine)));
+    assert!(redoku.place_if_valid(7, 1, Some(One)));
+    assert!(redoku.place_if_valid(7, 3, Some(Five)));
+    assert!(redoku.place_if_valid(7, 4, Some(Eight)));
+    assert!(redoku.place_if_valid(7, 8, Some(Four)));
+
+    assert!(redoku.place_if_valid(8, 1, Some(Four)));
+    assert!(redoku.place_if_valid(8, 4, Some(Seven)));
+    assert!(redoku.place_if_valid(8, 5, Some(One)));
+    assert!(redoku.place_if_valid(8, 7, Some(Six)));
+
+    assert!(redoku.empty_cells() == 45);
     b.iter(|| {
         let mut cloned = redoku.clone();
 
         assert!(try_row_col_block_elimination(&mut cloned));
-        assert!(cloned.empty_cells() == 66);
-        assert!(cloned[(0, 3)] == Some(Three));
-        assert!(cloned[(0, 6)] == Some(Eight));
-        assert!(cloned[(1, 5)] == Some(Two));
+        assert!(cloned.empty_cells() == 13);
+
+        assert!(try_row_col_block_elimination(&mut cloned));
+        assert!(cloned.empty_cells() == 2);
+
+        assert!(try_row_col_block_elimination(&mut cloned));
+        assert!(cloned.empty_cells() == 0);
     });
 }
 
@@ -275,27 +386,66 @@ fn test_column_row_block_elimination(b: &mut Bencher) {
 fn test_lone_ranger(b: &mut Bencher) {
     let mut redoku = Redoku::new();
 
-    redoku.place_if_valid(5, 0, Some(One));
+    assert!(redoku.place_if_valid(0, 0, Some(Four)));
+    assert!(redoku.place_if_valid(0, 2, Some(Five)));
+    assert!(redoku.place_if_valid(0, 3, Some(Seven)));
+    assert!(redoku.place_if_valid(0, 4, Some(Six)));
+    assert!(redoku.place_if_valid(0, 5, Some(Three)));
+    assert!(redoku.place_if_valid(0, 7, Some(Nine)));
+    assert!(redoku.place_if_valid(0, 8, Some(Two)));
 
-    // Empty (6, 0)
-    // Empty (6, 1)
-    redoku.place_if_valid(6, 2, Some(Two));
+    assert!(redoku.place_if_valid(1, 5, Some(Eight)));
+    assert!(redoku.place_if_valid(1, 6, Some(Five)));
 
-    // Empty (7, 0)
-    redoku.place_if_valid(7, 1, Some(Six));
-    redoku.place_if_valid(7, 2, Some(Eight));
+    assert!(redoku.place_if_valid(2, 0, Some(Nine)));
+    assert!(redoku.place_if_valid(2, 1, Some(Seven)));
+    assert!(redoku.place_if_valid(2, 2, Some(Eight)));
+    assert!(redoku.place_if_valid(2, 3, Some(Five)));
+    assert!(redoku.place_if_valid(2, 4, Some(Four)));
+    assert!(redoku.place_if_valid(2, 6, Some(Six)));
 
-    // Empty (8, 0)
-    redoku.place_if_valid(8, 1, Some(Nine));
-    redoku.place_if_valid(8, 2, Some(Seven));
+    assert!(redoku.place_if_valid(3, 0, Some(Eight)));
+    assert!(redoku.place_if_valid(3, 1, Some(Four)));
+    assert!(redoku.place_if_valid(3, 4, Some(Two)));
+    assert!(redoku.place_if_valid(3, 6, Some(Nine)));
 
-    assert!(redoku.empty_cells() == 75);
+    assert!(redoku.place_if_valid(4, 0, Some(Five)));
+    assert!(redoku.place_if_valid(4, 3, Some(Six)));
+    assert!(redoku.place_if_valid(4, 5, Some(Seven)));
+    assert!(redoku.place_if_valid(4, 6, Some(Four)));
+    assert!(redoku.place_if_valid(4, 7, Some(Two)));
+
+    assert!(redoku.place_if_valid(5, 0, Some(Six)));
+    assert!(redoku.place_if_valid(5, 1, Some(Two)));
+    assert!(redoku.place_if_valid(5, 2, Some(Seven)));
+    assert!(redoku.place_if_valid(5, 4, Some(Three)));
+    assert!(redoku.place_if_valid(5, 6, Some(One)));
+    assert!(redoku.place_if_valid(5, 7, Some(Eight)));
+
+    assert!(redoku.place_if_valid(6, 0, Some(Seven)));
+    assert!(redoku.place_if_valid(6, 1, Some(Six)));
+    assert!(redoku.place_if_valid(6, 4, Some(Five)));
+
+    assert!(redoku.place_if_valid(7, 1, Some(Eight)));
+    assert!(redoku.place_if_valid(7, 7, Some(Five)));
+
+    assert!(redoku.place_if_valid(8, 2, Some(Four)));
+    assert!(redoku.place_if_valid(8, 5, Some(Six)));
+    assert!(redoku.place_if_valid(8, 8, Some(Eight)));
+
+    assert!(redoku.empty_cells() == 43);
     b.iter(|| {
         let mut cloned = redoku.clone();
 
         assert!(try_lone_ranger(&mut cloned));
-        assert!(cloned.empty_cells() == 74);
-        assert!(cloned[(6, 1)] == Some(One));
+        assert!(cloned.empty_cells() == 35);
+
+        assert!(try_lone_ranger(&mut cloned));
+        assert!(cloned.empty_cells() == 28);
+
+        assert!(try_lone_ranger(&mut cloned));
+        assert!(cloned.empty_cells() == 23);
+        // Could go one more for 22..
     });
 }
 

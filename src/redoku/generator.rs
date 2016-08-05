@@ -1,6 +1,8 @@
 use extra::rand::Randomizer;
+use utils::{random_cell_value, read_u8_in_range};
 use grader::{Difficulty, RedokuGrader};
-use redoku::{CellValue, Redoku};
+use redoku::Redoku;
+use value::CellValue;
 use solver::RedokuSolver;
 
 #[derive(Debug)]
@@ -9,15 +11,53 @@ pub struct RedokuGenerator {
 }
 
 impl RedokuGenerator {
-    pub fn build(&self, difficulty: Difficulty) -> Redoku {
-        let redoku = Redoku::new();
+    pub fn build(rand: &mut Randomizer, difficulty: Difficulty) -> Redoku {
+        let mut redoku = Redoku::new();
+        let mut filled_cells = 0;
 
-        // Create a randomly generated valid start, pass it to solver?
+        loop {
+            redoku.clear();
+            filled_cells = 0;
 
-        // Gets a Redoku from Solver
+            while filled_cells < 11 {
+                let x = read_u8_in_range(rand, 0..9);
+                let y = read_u8_in_range(rand, 0..9);
 
-        // Does hole digging of Difficulty?
+                if redoku[(x as usize, y as usize)].is_some() {
+                    continue;
+                }
+
+                loop {
+                    let value = random_cell_value(rand);
+
+                    if redoku.place_if_valid(x as usize, y as usize, Some(value)) {
+                        filled_cells += 1;
+                        break;
+                    }
+                }
+
+            };
+
+            println!("Attempting to solve:\n{:?}", redoku);
+
+            if let Some(sol) = redoku.find_unique_solution() {
+                println!("Found terminal pattern:\n{:?}", sol);
+                break;
+            };
+        }
+
+        println!("{:?}", redoku);
+
 
         redoku
     }
 }
+
+// #[test]
+// fn test_build_tmp() {
+//     let mut rand = Randomizer::new(0xBEEF);
+
+//     let redoku = RedokuGenerator::build(&mut rand, Difficulty::Easy);
+
+//     assert!(false);
+// }

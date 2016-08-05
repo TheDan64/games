@@ -1,11 +1,11 @@
 #[cfg(test)]
 use test::Bencher;
 #[cfg(test)]
-use redoku::CellValue::*;
+use value::CellValue::*;
 #[cfg(test)]
 use utils;
 
-use redoku::CellValue;
+use value::CellValue;
 use redoku::Redoku;
 
 #[derive(Debug, PartialEq)]
@@ -138,4 +138,3 @@ fn test_solves_evil_redoku(b: &mut Bencher) {
 
     b.iter(|| { assert!(redoku.has_unique_solution()) })
 }
-

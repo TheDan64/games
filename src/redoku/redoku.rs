@@ -1,20 +1,7 @@
 use std::cmp::PartialEq;
-use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
-use std::ops::Index;
-
-#[derive(Debug, Copy, Clone, Eq, Hash, Ord, PartialOrd, PartialEq)]
-pub enum CellValue {
-    One   = 1,
-    Two   = 2,
-    Three = 3,
-    Four  = 4,
-    Five  = 5,
-    Six   = 6,
-    Seven = 7,
-    Eight = 8,
-    Nine  = 9,
-}
+use std::ops::{Index, IndexMut};
+use value::{CellValue, CellValueSet};
 
 #[derive(Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Grid {
@@ -23,57 +10,56 @@ pub enum Grid {
     Block(usize),
 }
 
-impl CellValue {
-    pub fn from_usize(val: usize) -> CellValue {
-        match val {
-            1 => CellValue::One,
-            2 => CellValue::Two,
-            3 => CellValue::Three,
-            4 => CellValue::Four,
-            5 => CellValue::Five,
-            6 => CellValue::Six,
-            7 => CellValue::Seven,
-            8 => CellValue::Eight,
-            9 => CellValue::Nine,
-            _ => panic!("Value {} is not a valid CellValue", val)
+impl Index<Grid> for [CellValueSet] {
+    type Output = CellValueSet;
+
+    fn index(&self, index: Grid) -> &CellValueSet {
+        match index {
+            Grid::Column(val) if val < 9 => &self[val],
+            Grid::Row(val) if val < 9 => &self[val + 9],
+            Grid::Block(val) if val < 9 => &self[val + 18],
+            _ => panic!("Block, Column, and Row must have a value between 0..9")
         }
     }
 }
 
+impl IndexMut<Grid> for [CellValueSet] {
+    fn index_mut(&mut self, index: Grid) -> &mut CellValueSet {
+        match index {
+            Grid::Column(val) if val < 9 => &mut self[val],
+            Grid::Row(val) if val < 9 => &mut self[val + 9usize],
+            Grid::Block(val) if val < 9 => &mut self[val + 18usize],
+            _ => panic!("Block, Column, and Row must have a value between 0..9")
+        }
+    }
+}
+
+// Using a Vec because a fixed size array doesn't impl Copy for BTreeSet :(
 pub struct Redoku {
     cells: [Option<CellValue>; 81],
-    grid_values: BTreeMap<Grid, BTreeSet<CellValue>>,
+    grid_values: [CellValueSet; 27],
 }
 
 impl Redoku {
     pub fn new() -> Redoku {
-        let mut grid_values = BTreeMap::new();
-
-        for i in 0..9 {
-            grid_values.insert(Grid::Column(i), BTreeSet::new());
-            grid_values.insert(Grid::Row(i), BTreeSet::new());
-            grid_values.insert(Grid::Block(i), BTreeSet::new());
-        }
-
-
         Redoku {
             cells: [None; 81],
-            grid_values: grid_values,
+            grid_values: [CellValueSet::new(0); 27],
         }
     }
 
     pub fn can_place(&self, x: usize, y: usize, value: CellValue) -> bool {
-        if self.grid_values.get(&Grid::Column(x)).unwrap().contains(&value) {
+        if self.grid_values[Grid::Column(x)].contains(&value) {
             return false;
         }
 
-        if self.grid_values.get(&Grid::Row(y)).unwrap().contains(&value) {
+        if self.grid_values[Grid::Row(y)].contains(&value) {
             return false;
         }
 
         let (block_x, block_y) = (x / 3, y / 3);
 
-        if self.grid_values.get(&Grid::Block(3 * block_y + block_x)).unwrap().contains(&value) {
+        if self.grid_values[Grid::Block(3 * block_y + block_x)].contains(&value) {
             return false;
         }
 
@@ -91,9 +77,9 @@ impl Redoku {
                     return false;
                 }
 
-                self.grid_values.get_mut(&Grid::Column(x)).unwrap().insert(val);
-                self.grid_values.get_mut(&Grid::Row(y)).unwrap().insert(val);
-                self.grid_values.get_mut(&Grid::Block(3 * block_y + block_x)).unwrap().insert(val);
+                self.grid_values[Grid::Column(x)].insert(val);
+                self.grid_values[Grid::Row(y)].insert(val);
+                self.grid_values[Grid::Block(3 * block_y + block_x)].insert(val);
 
                 self.cells[9 * y + x] = Some(val);
 
@@ -101,9 +87,9 @@ impl Redoku {
             },
             None => {
                 if let Some(val) = original_value {
-                    self.grid_values.get_mut(&Grid::Column(x)).unwrap().remove(&val);
-                    self.grid_values.get_mut(&Grid::Row(y)).unwrap().remove(&val);
-                    self.grid_values.get_mut(&Grid::Block(3 * block_y + block_x)).unwrap().remove(&val);
+                    self.grid_values[Grid::Column(x)].remove(&val);
+                    self.grid_values[Grid::Row(y)].remove(&val);
+                    self.grid_values[Grid::Block(3 * block_y + block_x)].remove(&val);
 
                     self.cells[9 * y + x] = None;
                 }
@@ -113,59 +99,62 @@ impl Redoku {
         }
     }
 
-    pub fn empty_cells(&self) -> usize {
+    pub fn empty_cells(&self) -> u8 {
         let mut cells = 81;
 
         for i in 0..9 {
-            cells -= self.grid_values.get(&Grid::Block(i)).unwrap().len();
+            cells -= self.grid_values[Grid::Block(i)].len();
         }
 
         cells
     }
 
-    pub fn row_values(&self, row: usize) -> &BTreeSet<CellValue> {
+    pub fn clear(&mut self) {
+        for x in 0..9 {
+            for y in 0..9 {
+                self.cells[9 * y + x] = None;
+            }
+
+            self.grid_values[Grid::Column(x)].clear();
+            self.grid_values[Grid::Row(x)].clear();
+            self.grid_values[Grid::Block(x)].clear();
+        }
+    }
+
+    pub fn row_values(&self, row: usize) -> &CellValueSet {
         if row > 8 {
             panic!("No such row {} to get values for.", row);
         }
 
-        self.grid_values.get(&Grid::Row(row)).unwrap()
+        &self.grid_values[Grid::Row(row)]
     }
 
-    pub fn column_values(&self, column: usize) -> &BTreeSet<CellValue> {
+    pub fn column_values(&self, column: usize) -> &CellValueSet {
         if column > 8 {
             panic!("No such column {} to get values for.", column);
         }
 
-        self.grid_values.get(&Grid::Column(column)).unwrap()
+        &self.grid_values[Grid::Column(column)]
     }
 
-    pub fn block_values(&self, block: usize) -> &BTreeSet<CellValue> {
+    pub fn block_values(&self, block: usize) -> &CellValueSet {
         if block > 8 {
             panic!("No such block {} to get values for.", block);
         }
 
-        self.grid_values.get(&Grid::Block(block)).unwrap()
+        &self.grid_values[Grid::Block(block)]
     }
 
-    pub fn calculate_impossible_values(&self, x: usize, y: usize) -> BTreeSet<CellValue> {
+    pub fn calculate_impossible_values(&self, x: usize, y: usize) -> CellValueSet {
         let (block_x, block_y) = (x / 3, y / 3);
 
-        &(self.column_values(x) | self.row_values(y)) | self.block_values(3 * block_y + block_x)
+        *self.column_values(x) | *self.row_values(y) | *self.block_values(3 * block_y + block_x)
     }
 
-    pub fn calculate_possible_values(&self, x: usize, y: usize) -> BTreeSet<CellValue> {
-        let mut values = BTreeSet::new();
-        values.insert(CellValue::One);
-        values.insert(CellValue::Two);
-        values.insert(CellValue::Three);
-        values.insert(CellValue::Four);
-        values.insert(CellValue::Five);
-        values.insert(CellValue::Six);
-        values.insert(CellValue::Seven);
-        values.insert(CellValue::Eight);
-        values.insert(CellValue::Nine);
+    pub fn calculate_possible_values(&self, x: usize, y: usize) -> CellValueSet {
+        let values = CellValueSet::new(0b1_1111_1111);
 
-        &values - &self.calculate_impossible_values(x, y)
+        values - self.calculate_impossible_values(x, y)
     }
 }
 
@@ -262,7 +251,7 @@ fn test_indexing() {
 
 #[test]
 fn test_place_if_valid() {
-    use self::CellValue::*;
+    use value::CellValue::*;
 
     let mut redoku = Redoku::new();
 

@@ -15,6 +15,7 @@ mod grader;
 mod redoku;
 mod solver;
 mod utils;
+mod value;
 
 use extra::rand::Randomizer;
 
