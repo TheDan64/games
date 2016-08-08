@@ -1,34 +1,34 @@
 use std::cmp::PartialEq;
 use std::fmt;
 use std::ops::{Index, IndexMut};
-use value::{CellValue, CellValueSet};
+use value::{Value, ValueSet};
 
-#[derive(Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug)]
 pub enum Grid {
-    Column(usize),
-    Row(usize),
-    Block(usize),
+    Column(u8),
+    Row(u8),
+    Block(u8),
 }
 
-impl Index<Grid> for [CellValueSet] {
-    type Output = CellValueSet;
+impl Index<Grid> for [ValueSet] {
+    type Output = ValueSet;
 
-    fn index(&self, index: Grid) -> &CellValueSet {
+    fn index(&self, index: Grid) -> &ValueSet {
         match index {
-            Grid::Column(val) if val < 9 => &self[val],
-            Grid::Row(val) if val < 9 => &self[val + 9],
-            Grid::Block(val) if val < 9 => &self[val + 18],
+            Grid::Column(val) if val < 9 => &self[val as usize],
+            Grid::Row(val) if val < 9 => &self[val as usize + 9],
+            Grid::Block(val) if val < 9 => &self[val as usize + 18],
             _ => panic!("Block, Column, and Row must have a value between 0..9")
         }
     }
 }
 
-impl IndexMut<Grid> for [CellValueSet] {
-    fn index_mut(&mut self, index: Grid) -> &mut CellValueSet {
+impl IndexMut<Grid> for [ValueSet] {
+    fn index_mut(&mut self, index: Grid) -> &mut ValueSet {
         match index {
-            Grid::Column(val) if val < 9 => &mut self[val],
-            Grid::Row(val) if val < 9 => &mut self[val + 9usize],
-            Grid::Block(val) if val < 9 => &mut self[val + 18usize],
+            Grid::Column(val) if val < 9 => &mut self[val as usize],
+            Grid::Row(val) if val < 9 => &mut self[val as usize + 9],
+            Grid::Block(val) if val < 9 => &mut self[val as usize + 18],
             _ => panic!("Block, Column, and Row must have a value between 0..9")
         }
     }
@@ -36,19 +36,29 @@ impl IndexMut<Grid> for [CellValueSet] {
 
 // Using a Vec because a fixed size array doesn't impl Copy for BTreeSet :(
 pub struct Redoku {
-    cells: [Option<CellValue>; 81],
-    grid_values: [CellValueSet; 27],
+    cells: [Option<Value>; 81],
+    grid_values: [ValueSet; 27],
+    pub temp_grid_values: Vec<(Grid, ValueSet)>, // TODO: Remove pub (debug)
 }
 
 impl Redoku {
     pub fn new() -> Redoku {
         Redoku {
             cells: [None; 81],
-            grid_values: [CellValueSet::new(0); 27],
+            grid_values: [ValueSet::new(0); 27],
+            temp_grid_values: Vec::new(),
         }
     }
 
-    pub fn can_place(&self, x: usize, y: usize, value: CellValue) -> bool {
+    pub fn with_capacity(capacity: usize) -> Redoku {
+        Redoku {
+            cells: [None; 81],
+            grid_values: [ValueSet::new(0); 27],
+            temp_grid_values: Vec::with_capacity(capacity),
+        }
+    }
+
+    pub fn can_place(&self, x: u8, y: u8, value: Value) -> bool {
         if self.grid_values[Grid::Column(x)].contains(&value) {
             return false;
         }
@@ -66,7 +76,7 @@ impl Redoku {
         true
     }
 
-    pub fn place_if_valid(&mut self, x: usize, y: usize, value: Option<CellValue>) -> bool {
+    pub fn place_if_valid(&mut self, x: u8, y: u8, value: Option<Value>) -> bool {
         let original_value = self[(x, y)];
 
         let (block_x, block_y) = (x / 3, y / 3);
@@ -81,7 +91,7 @@ impl Redoku {
                 self.grid_values[Grid::Row(y)].insert(val);
                 self.grid_values[Grid::Block(3 * block_y + block_x)].insert(val);
 
-                self.cells[9 * y + x] = Some(val);
+                self.cells[9 * y as usize + x as usize] = Some(val);
 
                 true
             },
@@ -91,7 +101,7 @@ impl Redoku {
                     self.grid_values[Grid::Row(y)].remove(&val);
                     self.grid_values[Grid::Block(3 * block_y + block_x)].remove(&val);
 
-                    self.cells[9 * y + x] = None;
+                    self.cells[9 * y as usize + x as usize] = None;
                 }
 
                 true
@@ -112,7 +122,7 @@ impl Redoku {
     pub fn clear(&mut self) {
         for x in 0..9 {
             for y in 0..9 {
-                self.cells[9 * y + x] = None;
+                self.cells[9 * y as usize + x as usize] = None;
             }
 
             self.grid_values[Grid::Column(x)].clear();
@@ -121,7 +131,7 @@ impl Redoku {
         }
     }
 
-    pub fn row_values(&self, row: usize) -> &CellValueSet {
+    pub fn row_values(&self, row: u8) -> &ValueSet {
         if row > 8 {
             panic!("No such row {} to get values for.", row);
         }
@@ -129,7 +139,7 @@ impl Redoku {
         &self.grid_values[Grid::Row(row)]
     }
 
-    pub fn column_values(&self, column: usize) -> &CellValueSet {
+    pub fn column_values(&self, column: u8) -> &ValueSet {
         if column > 8 {
             panic!("No such column {} to get values for.", column);
         }
@@ -137,7 +147,7 @@ impl Redoku {
         &self.grid_values[Grid::Column(column)]
     }
 
-    pub fn block_values(&self, block: usize) -> &CellValueSet {
+    pub fn block_values(&self, block: u8) -> &ValueSet {
         if block > 8 {
             panic!("No such block {} to get values for.", block);
         }
@@ -145,16 +155,30 @@ impl Redoku {
         &self.grid_values[Grid::Block(block)]
     }
 
-    pub fn calculate_impossible_values(&self, x: usize, y: usize) -> CellValueSet {
+    pub fn calculate_impossible_values(&self, x: u8, y: u8) -> ValueSet {
         let (block_x, block_y) = (x / 3, y / 3);
 
         *self.column_values(x) | *self.row_values(y) | *self.block_values(3 * block_y + block_x)
     }
 
-    pub fn calculate_possible_values(&self, x: usize, y: usize) -> CellValueSet {
-        let values = CellValueSet::new(0b1_1111_1111);
+    pub fn calculate_possible_values(&self, x: u8, y: u8) -> ValueSet {
+        ValueSet::new(0b1_1111_1111) - self.calculate_impossible_values(x, y)
+    }
 
-        values - self.calculate_impossible_values(x, y)
+    pub fn insert_temporary_values(&mut self, grid: Grid, values: ValueSet) {
+        self.temp_grid_values.push((grid, values));
+
+        self.grid_values[grid] |= values;
+    }
+
+    pub fn remove_temporary_values(&mut self) {
+        while let Some((grid, values)) = self.temp_grid_values.pop() {
+            self.grid_values[grid] -= values;
+        }
+    }
+
+    pub fn temporary_values(&self) -> usize {
+        self.temp_grid_values.len()
     }
 }
 
@@ -165,6 +189,7 @@ impl Clone for Redoku {
         Redoku {
             cells: self.cells,
             grid_values: self.grid_values.clone(),
+            temp_grid_values: self.temp_grid_values.clone(),
         }
     }
 }
@@ -179,7 +204,7 @@ impl PartialEq for Redoku {
             }
         }
 
-        self.grid_values == other.grid_values
+        self.grid_values == other.grid_values //&& self.temp_grid_values == other.temp_grid_values
     }
 
     fn ne(&self, other: &Redoku) -> bool {
@@ -187,13 +212,13 @@ impl PartialEq for Redoku {
     }
 }
 
-impl Index<(usize, usize)> for Redoku {
-    type Output = Option<CellValue>;
+impl Index<(u8, u8)> for Redoku {
+    type Output = Option<Value>;
 
-    fn index(&self, index: (usize, usize)) -> &Option<CellValue> {
+    fn index(&self, index: (u8, u8)) -> &Option<Value> {
         let (x, y) = index;
 
-        &self.cells[y * 9 + x]
+        &self.cells[y as usize * 9 + x as usize]
     }
 }
 
@@ -216,7 +241,7 @@ impl fmt::Debug for Redoku {
                 }
 
                 string.push_str(&format!("{}", match self[(x, y)] {
-                    Some(val) => char::from_digit(val as u32, 10).unwrap(),
+                    Some(val) => char::from_digit(val as u32 + 1, 10).unwrap(),
                     None => '?',
                 }));
             }
@@ -242,16 +267,16 @@ fn test_indexing() {
         for y in 0..9 {
             assert!(redoku[(x, y)] == None);
 
-            redoku.cells[9 * y + x] = Some(CellValue::from_usize(y + 1));
+            redoku.cells[9 * y as usize + x as usize] = Some(Value::from_u8(y));
 
-            assert!(redoku[(x, y)] == Some(CellValue::from_usize(y + 1)));
+            assert!(redoku[(x, y)] == Some(Value::from_u8(y)));
         }
     }
 }
 
 #[test]
 fn test_place_if_valid() {
-    use value::CellValue::*;
+    use value::Value::*;
 
     let mut redoku = Redoku::new();
 

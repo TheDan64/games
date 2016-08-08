@@ -1,13 +1,16 @@
 use extra::rand::Randomizer;
 use redoku::Redoku;
-use value::CellValue::*;
-use value::CellValue;
+use value::Value::*;
+use value::Value;
 use std::ops::Range;
+use std::slice::Iter;
 
 pub fn read_u8_in_range(rand: &mut Randomizer, mut range: Range<u8>) -> u8 {
     let low = range.next().unwrap();
-    let high = range.last().unwrap() + 1;
-    // TODO: Improve ^
+    let high = match range.last() {
+        Some(val) => val + 1,
+        None => return low
+    };
 
     assert!(low < high);
 
@@ -23,9 +26,22 @@ pub fn read_u8_in_range(rand: &mut Randomizer, mut range: Range<u8>) -> u8 {
     }
 }
 
-pub fn random_cell_value(rand: &mut Randomizer) -> CellValue {
-    CellValue::from_usize(read_u8_in_range(rand, 1..10) as usize)
+pub fn random_cell_value(rand: &mut Randomizer) -> Value {
+    Value::from_u8(read_u8_in_range(rand, 0..9))
 }
+
+// pub fn shuffle_value_range(rand: &mut Randomizer) -> [Value; 9] {
+//     let mut i = 9u8;
+//     let mut values = [One, Two, Three, Four, Five, Six, Seven, Eight, Nine];
+
+//     while i > 1 {
+//         i -= 1;
+
+//         values.swap(i as usize, read_u8_in_range(rand, 0..i) as usize);
+//     }
+
+//     values
+// }
 
 pub fn get_very_easy_redoku() -> Redoku {
     let mut redoku = Redoku::new();

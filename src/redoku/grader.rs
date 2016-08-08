@@ -1,7 +1,7 @@
-use redoku::Redoku;
+use redoku::{Grid, Redoku};
 use std::cmp::{max, min};
-use value::CellValue::*;
-use value::CellValue;
+use value::Value::*;
+use value::{Value, ValueSet};
 #[cfg(test)]
 use test::Bencher;
 
@@ -29,11 +29,11 @@ fn try_row_col_block_elimination(redoku: &mut Redoku) -> bool {
             // let count = values.len();
             // let sum: usize = values.iter().sum();
 
-            let (count, sum) = values.iter().fold((0, 0), |(a, b), v| (a + 1, b + v as usize));
+            let (count, sum) = values.fold((0, 0), |(a, b), v| (a + 1, b + v as u8));
 
-            // Place the missing value determined from 45 (sum(1...9))
+            // Place the missing value determined from 36 (sum(0...8))
             if count == 8 {
-                assert!(redoku.place_if_valid(x, y, Some(CellValue::from_usize(45 - sum))));
+                assert!(redoku.place_if_valid(x, y, Some(Value::from_u8(36 - sum))));
 
                 success = true;
             }
@@ -66,42 +66,30 @@ fn try_lone_ranger(redoku: &mut Redoku) -> bool {
                 let (block_x, block_y) = (block_x * 3 + i % 3, block_y * 3 + i / 3);
 
                 if (row_x, row_y) != (x, y) && redoku[(row_x, row_y)].is_none() {
-                    row_values = row_values - redoku.calculate_possible_values(row_x, row_y);
+                    row_values -= redoku.calculate_possible_values(row_x, row_y);
                 }
 
                 if (column_x, column_y) != (x, y) && redoku[(column_x, column_y)].is_none() {
-                    column_values = column_values - redoku.calculate_possible_values(column_x, column_y);
+                    column_values -= redoku.calculate_possible_values(column_x, column_y);
                 }
 
                 if (block_x, block_y) != (x, y) && redoku[(block_x, block_y)].is_none() {
-                    block_values = block_values - redoku.calculate_possible_values(block_x, block_y);
+                    block_values -= redoku.calculate_possible_values(block_x, block_y);
                 }
             }
 
-            if row_values.len() == 1 {
-                let value = row_values.iter().next().unwrap();
-
-                if redoku.place_if_valid(x, y, Some(value)) {
-                    success = true;
-                    break;
-                }
+            if row_values.len() == 1 && redoku.place_if_valid(x, y, row_values.next()) {
+                success = true;
+                break;
             }
 
-            if column_values.len() == 1 {
-                let value = column_values.iter().next().unwrap();
-
-                if redoku.place_if_valid(x, y, Some(value)) {
-                    success = true;
-                    break;
-                }
+            if column_values.len() == 1 && redoku.place_if_valid(x, y, column_values.next()) {
+                success = true;
+                break;
             }
 
-            if block_values.len() == 1 {
-                let value = block_values.iter().next().unwrap();
-
-                if redoku.place_if_valid(x, y, Some(value)) {
-                    success = true;
-                }
+            if block_values.len() == 1 && redoku.place_if_valid(x, y, block_values.next()) {
+                success = true;
             }
         }
     }
@@ -109,11 +97,9 @@ fn try_lone_ranger(redoku: &mut Redoku) -> bool {
     success
 }
 
-fn try_look_for_twins(redoku: &mut Redoku) -> bool {
-    let mut success = false;
-    let mut twins = true;
-
-    return success;
+fn try_look_for_twins_triplets(redoku: &mut Redoku) -> (bool, bool) {
+    let mut twins = false;
+    let mut triplets = false;
 
     // TODO: Randomize the range of values for potentially better results
     // as doing x and y incrementally will favor some paths over others
@@ -124,62 +110,108 @@ fn try_look_for_twins(redoku: &mut Redoku) -> bool {
             }
 
             let mut row_values = redoku.calculate_possible_values(x, y);
-            let mut column_values = row_values.clone();
-            let mut block_values = row_values.clone();
 
-            let (block_x, block_y) = (x / 3, y / 3);
+            let len = row_values.len();
+
+            if len < 2 || len > 3 {
+                continue;
+            }
+
+            let mut column_values = row_values;
+            let mut block_values = row_values;
+
+            let (block_grid_x, block_grid_y) = (x / 3, y / 3);
+            // TODO: maybe define these outside to loop an reset values?
+            let mut row_values_count = 1;
+            let mut column_values_count = 1;
+            let mut block_values_count = 1;
+
+            let mut last_column = x;
+            let mut last_row = y;
+            let mut last_block = (block_grid_x, block_grid_y);
 
             for i in 0..9 {
-                let (row_x, row_y) = (x, i);
-                let (column_x, column_y) = (i, y);
-                let (block_x, block_y) = (block_x * 3 + i % 3, block_y * 3 + i / 3);
+                let (row_x, row_y) = (i, y);
 
                 if (row_x, row_y) != (x, y) && redoku[(row_x, row_y)].is_none() {
                     let current_values = redoku.calculate_possible_values(row_x, row_y);
 
-                    if current_values == row_values {
-                        success = true;
+                    if current_values <= row_values && current_values.len() == 2 {
+                        row_values_count += 1;
+                        last_row = row_y;
+                    } else if current_values > row_values && current_values.len() == 3 {
+                        row_values = current_values;
+                        row_values_count += 1;
+
+                        last_row = row_x;
                     }
                 }
+            }
+
+            if row_values_count == 2 {
+                redoku.insert_temporary_values(Grid::Row(last_row), row_values);
+                twins = true;
+            } else if row_values_count == 3 {
+                redoku.insert_temporary_values(Grid::Row(last_row), row_values);
+                triplets = true;
+            }
+
+            for i in 0..9 {
+                let (column_x, column_y) = (x, i);
 
                 if (column_x, column_y) != (x, y) && redoku[(column_x, column_y)].is_none() {
-                    column_values = column_values - redoku.calculate_possible_values(column_x, column_y);
+                    let current_values = redoku.calculate_possible_values(column_x, column_y);
+
+                    if current_values <= column_values && current_values.len() == 2 {
+                        column_values_count += 1;
+                        last_column = column_x;
+                    } else if current_values > column_values && current_values.len() == 3 {
+                        column_values = current_values;
+                        column_values_count += 1;
+
+                        last_column = column_y;
+                    }
                 }
+            }
+
+            if column_values_count == 2 {
+                redoku.insert_temporary_values(Grid::Column(last_column), column_values);
+                twins = true;
+            } else if column_values_count == 3 {
+                redoku.insert_temporary_values(Grid::Column(last_column), column_values);
+                triplets = true;
+            }
+
+            for i in 0..9 {
+                let (block_x, block_y) = (block_grid_x * 3 + i % 3, block_grid_y * 3 + i / 3);
 
                 if (block_x, block_y) != (x, y) && redoku[(block_x, block_y)].is_none() {
-                    block_values = block_values - redoku.calculate_possible_values(block_x, block_y);
+                    let current_values = redoku.calculate_possible_values(block_x, block_y);
+
+                    if current_values <= block_values && current_values.len() == 2 {
+                        block_values_count += 1;
+                    } else if current_values > block_values && current_values.len() == 3 {
+                        block_values = current_values;
+                        block_values_count += 1;
+                    }
                 }
             }
 
-            if row_values.len() == 1 {
-                let value = row_values.iter().next().unwrap();
+            if block_values_count == 2 {
+                let (block_x, block_y) = last_block;
 
-                if redoku.place_if_valid(x, y, Some(value)) {
-                    success = true;
-                    break;
-                }
-            }
+                redoku.insert_temporary_values(Grid::Block(3 * block_y + block_x), block_values);
+                twins = true;
+            } else if block_values_count == 3 {
+                let (block_x, block_y) = last_block;
 
-            if column_values.len() == 1 {
-                let value = column_values.iter().next().unwrap();
-
-                if redoku.place_if_valid(x, y, Some(value)) {
-                    success = true;
-                    break;
-                }
-            }
-
-            if block_values.len() == 1 {
-                let value = block_values.iter().next().unwrap();
-
-                if redoku.place_if_valid(x, y, Some(value)) {
-                    success = true;
-                }
+                redoku.insert_temporary_values(Grid::Block(3 * block_y + block_x), block_values);
+                triplets = true;
             }
         }
     }
 
-    success
+    (twins, triplets)
 }
 
 fn score_cell_total_count(redoku: &Redoku) -> f32 {
@@ -263,21 +295,33 @@ fn score_human_solving_techniques(redoku: &Redoku) -> f32 {
             }
         }
 
-        let twins = try_look_for_twins(&mut redoku);
+        let (twins, triplets) = try_look_for_twins_triplets(&mut redoku);
 
         if twins {
-            max_score = max(max_score , 3);
+            max_score = max(max_score, 3);
 
             if redoku.empty_cells() == 0 {
                 break;
             }
         }
 
-        // TODO: Triplets
+        if triplets {
+            max_score = max(max_score, 4);
+
+            if redoku.empty_cells() == 0 {
+                break;
+            }
+        }
 
         // If no other method worked, need to brute force to solve. Instead,
-        // assuming there is a valid solution means we can skip doing so.
-        if !rcb_elimination && !lone_ranger && true && true && true {
+        // (assuming there is a valid solution means) we can skip doing so.
+        if !rcb_elimination && !lone_ranger && !twins && !triplets {
+            if redoku.temporary_values() > 0 {
+                redoku.remove_temporary_values();
+
+                continue;
+            }
+
             max_score = 5;
             break;
         }
@@ -447,6 +491,55 @@ fn test_lone_ranger(b: &mut Bencher) {
         assert!(cloned.empty_cells() == 23);
         // Could go one more for 22..
     });
+}
+
+#[test]
+fn test_twins_triplets() {
+    let mut redoku = Redoku::new();
+
+    assert!(redoku.place_if_valid(0, 0, Some(Six)));
+    assert!(redoku.place_if_valid(0, 2, Some(Nine)));
+    assert!(redoku.place_if_valid(0, 3, Some(One)));
+
+    assert!(redoku.place_if_valid(1, 1, Some(Eight)));
+    assert!(redoku.place_if_valid(1, 2, Some(Three)));
+
+    assert!(redoku.place_if_valid(2, 0, Some(Seven)));
+    assert!(redoku.place_if_valid(2, 2, Some(One)));
+    assert!(redoku.place_if_valid(2, 3, Some(Six)));
+
+    assert!(redoku.place_if_valid(3, 1, Some(Seven)));
+    assert!(redoku.place_if_valid(3, 2, Some(Six)));
+    assert!(redoku.place_if_valid(3, 3, Some(Five)));
+
+    assert!(redoku.place_if_valid(4, 2, Some(Four)));
+
+    assert!(redoku.place_if_valid(5, 0, Some(One)));
+    assert!(redoku.place_if_valid(5, 2, Some(Five)));
+    assert!(redoku.place_if_valid(5, 3, Some(Seven)));
+
+    assert!(redoku.place_if_valid(6, 1, Some(One)));
+    assert!(redoku.place_if_valid(6, 2, Some(Two)));
+    assert!(redoku.place_if_valid(6, 3, Some(Eight)));
+
+    assert!(redoku.place_if_valid(7, 1, Some(Six)));
+    assert!(redoku.place_if_valid(7, 2, Some(Eight)));
+    assert!(redoku.place_if_valid(7, 3, Some(Nine)));
+
+    assert!(redoku.place_if_valid(8, 1, Some(Nine)));
+    assert!(redoku.place_if_valid(8, 2, Some(Seven)));
+
+    assert!(redoku.calculate_possible_values(0, 1) == ValueSet::new(0b0_0001_1010));
+    assert!(redoku.calculate_possible_values(1, 0) == ValueSet::new(0b0_0001_1010));
+    assert!(redoku.calculate_possible_values(2, 1) == ValueSet::new(0b0_0001_1010));
+
+    try_look_for_twins_triplets(&mut redoku);
+
+    println!("{:?}", redoku.calculate_possible_values(0, 1));
+    println!("{:?}", redoku.temp_grid_values);
+    assert!(redoku.calculate_possible_values(0, 1) == ValueSet::new(0b0_0001_1000));
+    assert!(redoku.calculate_possible_values(2, 1) == ValueSet::new(0b0_0001_1000));
+
 }
 
 #[test]

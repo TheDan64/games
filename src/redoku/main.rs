@@ -5,9 +5,10 @@
 
 #![feature(test)]
 
-extern crate termion;
 #[macro_use]
 extern crate extra;
+extern crate rand;
+extern crate termion;
 extern crate test;
 
 mod generator;
@@ -36,7 +37,7 @@ fn render() {
 }
 
 fn main() {
-    println!("Hello, Redoku!");
+    println!("Hello, Redox!");
 
     // Test:
     use utils::get_evil_redoku;
