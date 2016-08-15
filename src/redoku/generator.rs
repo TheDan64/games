@@ -40,7 +40,7 @@ impl RedokuGenerator {
 
             println!("Attempting to solve:\n{:?}", redoku);
 
-            if let Some(sol) = redoku.find_unique_solution() {
+            if let Some((sol, _)) = redoku.find_unique_solution() {
                 println!("Found terminal pattern:\n{:?}", sol);
                 break;
             };

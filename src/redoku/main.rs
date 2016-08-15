@@ -7,7 +7,7 @@
 
 #[macro_use]
 extern crate extra;
-extern crate rand;
+// extern crate rand;
 extern crate termion;
 extern crate test;
 

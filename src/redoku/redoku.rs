@@ -168,6 +168,8 @@ impl Redoku {
     pub fn insert_temporary_values(&mut self, grid: Grid, values: ValueSet) {
         self.temp_grid_values.push((grid, values));
 
+        println!("Inserted temp vals at {:?}: {:?}", grid, values);
+
         self.grid_values[grid] |= values;
     }
 
@@ -188,7 +190,7 @@ impl Clone for Redoku {
     fn clone(&self) -> Redoku {
         Redoku {
             cells: self.cells,
-            grid_values: self.grid_values.clone(),
+            grid_values: self.grid_values,
             temp_grid_values: self.temp_grid_values.clone(),
         }
     }

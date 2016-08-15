@@ -33,7 +33,7 @@ impl Value {
     }
 }
 
-/// Represents a fully ordered bit set of Values where the lowest bit is Value::One
+/// Represents a fully ordered bit set of Values where the lowest bit is `Value::One`
 #[derive(Clone, Copy, PartialEq)]
 pub struct ValueSet {
     set: u16,

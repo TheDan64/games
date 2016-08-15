@@ -1,4 +1,5 @@
 use redoku::{Grid, Redoku};
+use solver::RedokuSolver;
 use std::cmp::{max, min};
 use value::Value::*;
 use value::{Value, ValueSet};
@@ -55,8 +56,8 @@ fn try_lone_ranger(redoku: &mut Redoku) -> bool {
             }
 
             let mut row_values = redoku.calculate_possible_values(x, y);
-            let mut column_values = row_values.clone();
-            let mut block_values = row_values.clone();
+            let mut column_values = row_values;
+            let mut block_values = row_values;
 
             let (block_x, block_y) = (x / 3, y / 3);
 
@@ -101,6 +102,11 @@ fn try_look_for_twins_triplets(redoku: &mut Redoku) -> (bool, bool) {
     let mut twins = false;
     let mut triplets = false;
 
+    // TODO: This could be improved/rewritten. It doesn't cover all cases... but
+    // the goal is to just find one instance of a twin or triplet, so it
+    // is counted as working. I suppose the final iteration count could
+    // possibly differ due to catching a few less cases
+
     // TODO: Randomize the range of values for potentially better results
     // as doing x and y incrementally will favor some paths over others
     for x in 0..9 {
@@ -126,87 +132,154 @@ fn try_look_for_twins_triplets(redoku: &mut Redoku) -> (bool, bool) {
             let mut column_values_count = 1;
             let mut block_values_count = 1;
 
-            let mut last_column = x;
-            let mut last_row = y;
-            let mut last_block = (block_grid_x, block_grid_y);
+            let mut empty_rows = 1;
+            let mut empty_columns = 1;
+            let mut empty_blocks = 1;
+
+            let mut invalid_twin = false;
+
+            println!("Starting at ({},{})", x, y);
 
             for i in 0..9 {
                 let (row_x, row_y) = (i, y);
 
                 if (row_x, row_y) != (x, y) && redoku[(row_x, row_y)].is_none() {
-                    let current_values = redoku.calculate_possible_values(row_x, row_y);
+                    println!("Row: Visiting ({},{})", row_x, row_y);
+                    let mut current_values = redoku.calculate_possible_values(row_x, row_y);
 
-                    if current_values <= row_values && current_values.len() == 2 {
+                    let len = current_values.len();
+
+                    if len == 1 && redoku.place_if_valid(row_x, row_y, current_values.next()){
+                        println!("(Row) Placed {:?} at {},{}!", redoku[(row_x, row_y)], row_x, row_y);
+                        continue;
+                    }
+
+                    println!("{:?} ? {:?}", current_values, row_values);
+
+                    if current_values <= row_values && len > 1 {
                         row_values_count += 1;
-                        last_row = row_y;
-                    } else if current_values > row_values && current_values.len() == 3 {
+
+                        if row_values.len() == 3 {
+                            invalid_twin = true;
+                        }
+
+                        println!("Row - Found {:?} <= {:?}", current_values, row_values);
+                    } else if current_values > row_values && len == 3 {
+                        println!("Row - Found {:?} > {:?}", current_values, row_values);
+                        // FIXME: 2 -> 3 should not be valid
                         row_values = current_values;
                         row_values_count += 1;
 
-                        last_row = row_x;
+                        invalid_twin = true;
                     }
+
+                    empty_rows += 1;
                 }
             }
 
-            if row_values_count == 2 {
-                redoku.insert_temporary_values(Grid::Row(last_row), row_values);
-                twins = true;
-            } else if row_values_count == 3 {
-                redoku.insert_temporary_values(Grid::Row(last_row), row_values);
-                triplets = true;
+            if empty_rows > row_values_count {
+                if y == 3 {
+                    println!("{}, {}", empty_rows, row_values_count);
+                }
+                if row_values_count == 2 && !invalid_twin {
+                    redoku.insert_temporary_values(Grid::Row(y), row_values);
+                    redoku.insert_temporary_values(Grid::Block(3 * block_grid_y + block_grid_x), row_values);
+                    twins = true;
+                } else if row_values_count == 3 {
+                    redoku.insert_temporary_values(Grid::Row(y), row_values);
+                    redoku.insert_temporary_values(Grid::Block(3 * block_grid_y + block_grid_x), row_values);
+                    triplets = true;
+                }
             }
+
+            invalid_twin = false;
 
             for i in 0..9 {
                 let (column_x, column_y) = (x, i);
 
                 if (column_x, column_y) != (x, y) && redoku[(column_x, column_y)].is_none() {
-                    let current_values = redoku.calculate_possible_values(column_x, column_y);
+                    println!("Column: Visiting ({},{})", column_x, column_y);
+                    let mut current_values = redoku.calculate_possible_values(column_x, column_y);
 
-                    if current_values <= column_values && current_values.len() == 2 {
+                    let len = current_values.len();
+
+                    if len == 1 && redoku.place_if_valid(column_x, column_y, current_values.next()){
+                        println!("(Column) Placed {:?} at {},{}!", redoku[(column_x, column_y)], column_x, column_y);
+                        continue;
+                    }
+
+                    if current_values <= column_values && len > 1 {
+                        println!("Column - Found {:?} <= {:?}", current_values, row_values);
                         column_values_count += 1;
-                        last_column = column_x;
-                    } else if current_values > column_values && current_values.len() == 3 {
+
+                        if column_values.len() == 3 {
+                            invalid_twin = true;
+                        }
+                    } else if current_values > column_values && len == 3 {
+                        println!("Column - Found {:?} > {:?}", current_values, row_values);
                         column_values = current_values;
                         column_values_count += 1;
 
-                        last_column = column_y;
+                        invalid_twin = true;
                     }
+
+                    empty_columns += 1;
                 }
             }
 
-            if column_values_count == 2 {
-                redoku.insert_temporary_values(Grid::Column(last_column), column_values);
-                twins = true;
-            } else if column_values_count == 3 {
-                redoku.insert_temporary_values(Grid::Column(last_column), column_values);
-                triplets = true;
+            if empty_columns > column_values_count {
+                if column_values_count == 2 && !invalid_twin {
+                    redoku.insert_temporary_values(Grid::Column(x), column_values);
+                    redoku.insert_temporary_values(Grid::Block(3 * block_grid_y + block_grid_x), column_values);
+                    twins = true;
+                } else if column_values_count == 3 {
+                    redoku.insert_temporary_values(Grid::Column(x), column_values);
+                    redoku.insert_temporary_values(Grid::Block(3 * block_grid_y + block_grid_x), column_values);
+                    triplets = true;
+                }
             }
+
+            invalid_twin = false;
 
             for i in 0..9 {
                 let (block_x, block_y) = (block_grid_x * 3 + i % 3, block_grid_y * 3 + i / 3);
 
                 if (block_x, block_y) != (x, y) && redoku[(block_x, block_y)].is_none() {
-                    let current_values = redoku.calculate_possible_values(block_x, block_y);
+                    println!("Block: Visiting ({},{})", block_x, block_y);
+                    let mut current_values = redoku.calculate_possible_values(block_x, block_y);
 
-                    if current_values <= block_values && current_values.len() == 2 {
+                    let len = current_values.len();
+
+                    if len == 1 && redoku.place_if_valid(block_x, block_y, current_values.next()){
+                        println!("(Block) Placed {:?} at {},{}!", redoku[(block_x, block_y)], block_x, block_y);
+                        continue;
+                    }
+
+                    if current_values <= block_values && len > 1 {
                         block_values_count += 1;
-                    } else if current_values > block_values && current_values.len() == 3 {
+
+                        if block_values.len() == 3 {
+                            invalid_twin = true;
+                        }
+                    } else if current_values > block_values && len == 3 {
                         block_values = current_values;
                         block_values_count += 1;
+
+                        invalid_twin = true;
                     }
+
+                    empty_blocks += 1;
                 }
             }
 
-            if block_values_count == 2 {
-                let (block_x, block_y) = last_block;
-
-                redoku.insert_temporary_values(Grid::Block(3 * block_y + block_x), block_values);
-                twins = true;
-            } else if block_values_count == 3 {
-                let (block_x, block_y) = last_block;
-
-                redoku.insert_temporary_values(Grid::Block(3 * block_y + block_x), block_values);
-                triplets = true;
+            if empty_blocks > block_values_count {
+                if block_values_count == 2 && !invalid_twin {
+                    redoku.insert_temporary_values(Grid::Block(3 * block_grid_y + block_grid_x), block_values);
+                    twins = true;
+                } else if block_values_count == 3 {
+                    redoku.insert_temporary_values(Grid::Block(3 * block_grid_y + block_grid_x), block_values);
+                    triplets = true;
+                }
             }
         }
     }
@@ -314,7 +387,8 @@ fn score_human_solving_techniques(redoku: &Redoku) -> f32 {
         }
 
         // If no other method worked, need to brute force to solve. Instead,
-        // (assuming there is a valid solution means) we can skip doing so.
+        // (assuming there is a valid solution means) we can skip doing so
+        // at the expense of our iteration count
         if !rcb_elimination && !lone_ranger && !twins && !triplets {
             if redoku.temporary_values() > 0 {
                 redoku.remove_temporary_values();
@@ -327,16 +401,32 @@ fn score_human_solving_techniques(redoku: &Redoku) -> f32 {
         }
     }
 
+    redoku.remove_temporary_values();
+
     // Seems to be no max() for floats due to no full ordering
     max_score as f32
 }
 
-// Difficulty | Enum. search times | Score
-// Very Easy  |      100 <         |   1
-// Easy       |      100 -    999  |   2
-// Medium     |    1,000 -  9,999  |   3
-// Hard       |   10,000 - 99,999  |   4
-// Evil       |  100,000 >         |   5
+fn score_search_iterations(redoku: &Redoku) -> f32 {
+    // Difficulty | Enum. search times | Score
+    // Very Easy  |      100 <         |   1
+    // Easy       |      100 -    999  |   2
+    // Medium     |    1,000 -  9,999  |   3
+    // Hard       |   10,000 - 99,999  |   4
+    // Evil       |  100,000 >         |   5
+
+    let (_, iterations) = redoku.find_unique_solution().unwrap(); // REVIEW: Could be bad assumption
+
+    println!("Iterations: {}", iterations);
+
+    match iterations {
+            0...99 => 1.0,
+          100...999 => 2.0,
+         1000...9999 => 3.0,
+        10000...99999 => 4.0,
+        _ => 5.0,
+    }
+}
 
 pub trait RedokuGrader {
     fn grade_difficulty(&self) -> Difficulty;
@@ -344,12 +434,20 @@ pub trait RedokuGrader {
 
 impl RedokuGrader for Redoku {
     fn grade_difficulty(&self) -> Difficulty {
-        let mut total_score = 0.4 * score_cell_total_count(&self);
+        let s1 = score_cell_total_count(&self);
+        let s2 = score_cell_row_column_count(&self);
+        let s3 = score_human_solving_techniques(&self);
+        let s4 = score_search_iterations(&self);
 
-        total_score += 0.2 * score_cell_row_column_count(&self);
-        total_score += 0.2 * score_human_solving_techniques(&self);
+        let total_score = 0.4 * s1 + 0.2 * s2 + 0.2 * s3 + 0.2 * s4;
 
-        // Enumerating Search
+        println!("Score Rubric:
+Cell Total Count:   0.4 * {}
+Cell Row Col Count: 0.2 * {}
+Human Solving Tech: 0.2 * {}
+Search Iterations:  0.2 * {}
+                  +----------
+                  =       {}", s1, s2, s3, s4, total_score);
 
         match total_score.round() {
             1.0 => Difficulty::VeryEasy,
@@ -533,13 +631,37 @@ fn test_twins_triplets() {
     assert!(redoku.calculate_possible_values(1, 0) == ValueSet::new(0b0_0001_1010));
     assert!(redoku.calculate_possible_values(2, 1) == ValueSet::new(0b0_0001_1010));
 
+    println!("\n1,0: {:?}", redoku.calculate_possible_values(1, 0));
+    println!("1,3: {:?}", redoku.calculate_possible_values(1, 3));
+    println!("1,4: {:?}", redoku.calculate_possible_values(1, 4));
+    println!("1,5: {:?}", redoku.calculate_possible_values(1, 5));
+    println!("1,6: {:?}", redoku.calculate_possible_values(1, 6));
+    println!("1,7: {:?}", redoku.calculate_possible_values(1, 7));
+    println!("1,8: {:?}", redoku.calculate_possible_values(1, 8));
+
     try_look_for_twins_triplets(&mut redoku);
 
-    println!("{:?}", redoku.calculate_possible_values(0, 1));
     println!("{:?}", redoku.temp_grid_values);
+    println!("1,0: {:?}", redoku.calculate_possible_values(1, 0));
+    println!("0,1: {:?}", redoku.calculate_possible_values(0, 1));
+    println!("2,1: {:?}", redoku.calculate_possible_values(2, 1));
+
+    println!("1,3: {:?}", redoku.calculate_possible_values(1, 3));
+
+    println!("3,0: {:?}", redoku.calculate_possible_values(3, 0));
+    println!("4,0: {:?}", redoku.calculate_possible_values(4, 0));
+    println!("4,1: {:?}", redoku.calculate_possible_values(4, 1));
+    println!("5,1: {:?}", redoku.calculate_possible_values(5, 1));
+
+    println!("6,0: {:?}", redoku.calculate_possible_values(6, 0));
+    println!("7,0: {:?}", redoku.calculate_possible_values(7, 0));
+    println!("8,0: {:?}", redoku.calculate_possible_values(8, 0));
     assert!(redoku.calculate_possible_values(0, 1) == ValueSet::new(0b0_0001_1000));
     assert!(redoku.calculate_possible_values(2, 1) == ValueSet::new(0b0_0001_1000));
-
+    assert!(redoku.calculate_possible_values(1, 0) == ValueSet::new(0b0_0000_0010));
+    println!("1, 0: {:?}", redoku.calculate_possible_values(1, 0));
+    println!("3, 0: {:?}", redoku.calculate_possible_values(3, 0));
+    println!("4, 0: {:?}", redoku.calculate_possible_values(4, 0));
 }
 
 #[test]
@@ -548,7 +670,9 @@ fn test_grade_very_easy_redoku() {
 
     let redoku = utils::get_very_easy_redoku();
 
-    assert!(redoku.grade_difficulty() == Difficulty::VeryEasy);
+    let grade = redoku.grade_difficulty();
+
+    assert!(grade == Difficulty::VeryEasy, "Graded a {:?}", grade);
 }
 
 #[test]
@@ -557,7 +681,9 @@ fn test_grade_easy_redoku() {
 
     let redoku = utils::get_easy_redoku();
 
-    assert!(redoku.grade_difficulty() == Difficulty::Easy);
+    let grade = redoku.grade_difficulty();
+
+    assert!(grade == Difficulty::Easy, "Graded a {:?}", grade);
 }
 
 #[test]
@@ -566,7 +692,9 @@ fn test_grade_medium_redoku() {
 
     let redoku = utils::get_medium_redoku();
 
-    assert!(redoku.grade_difficulty() == Difficulty::Medium);
+    let grade = redoku.grade_difficulty();
+
+    assert!(grade == Difficulty::Medium, "Graded a {:?}", grade);
 }
 
 #[test]
@@ -575,7 +703,9 @@ fn test_grade_hard_redoku() {
 
     let redoku = utils::get_hard_redoku();
 
-    assert!(redoku.grade_difficulty() == Difficulty::Hard);
+    let grade = redoku.grade_difficulty();
+
+    assert!(grade == Difficulty::Hard, "Graded a {:?}", grade);
 }
 
 #[test]
@@ -584,5 +714,18 @@ fn test_grade_evil_redoku() {
 
     let redoku = utils::get_evil_redoku();
 
-    assert!(redoku.grade_difficulty() == Difficulty::Evil);
+    let grade = redoku.grade_difficulty();
+
+    assert!(grade == Difficulty::Evil, "Graded a {:?}", grade);
 }
+
+// #[test]
+// fn test_grade_evil_redoku2() {
+//     use utils;
+
+//     let redoku = utils::get_evil_redoku2();
+
+//     let grade = redoku.grade_difficulty();
+
+//     assert!(grade == Difficulty::Evil, "Graded a {:?}", grade);
+// }

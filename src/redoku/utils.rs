@@ -3,7 +3,6 @@ use redoku::Redoku;
 use value::Value::*;
 use value::Value;
 use std::ops::Range;
-use std::slice::Iter;
 
 pub fn read_u8_in_range(rand: &mut Randomizer, mut range: Range<u8>) -> u8 {
     let low = range.next().unwrap();
@@ -292,6 +291,42 @@ pub fn get_evil_redoku() -> Redoku {
     redoku.place_if_valid(5, 8, Some(One));
     redoku.place_if_valid(7, 8, Some(Nine));
     redoku.place_if_valid(8, 8, Some(Four));
+
+    redoku
+}
+
+pub fn get_evil_redoku2() -> Redoku {
+    let mut redoku = Redoku::new();
+
+    assert!(redoku.place_if_valid(0, 1, Some(Five)));
+    assert!(redoku.place_if_valid(2, 1, Some(Eight)));
+
+    assert!(redoku.place_if_valid(3, 2, Some(Two)));
+    assert!(redoku.place_if_valid(8, 2, Some(One)));
+
+    assert!(redoku.place_if_valid(3, 3, Some(Five)));
+    assert!(redoku.place_if_valid(7, 3, Some(Nine)));
+
+    assert!(redoku.place_if_valid(5, 4, Some(One)));
+    assert!(redoku.place_if_valid(8, 4, Some(Six)));
+
+    assert!(redoku.place_if_valid(0, 5, Some(Nine)));
+    assert!(redoku.place_if_valid(2, 5, Some(Six)));
+    assert!(redoku.place_if_valid(6, 5, Some(Four)));
+
+    assert!(redoku.place_if_valid(1, 6, Some(Three)));
+    assert!(redoku.place_if_valid(2, 6, Some(One)));
+    assert!(redoku.place_if_valid(5, 6, Some(Six)));
+    assert!(redoku.place_if_valid(8, 6, Some(Seven)));
+
+    assert!(redoku.place_if_valid(3, 7, Some(Seven)));
+    assert!(redoku.place_if_valid(4, 7, Some(Two)));
+    assert!(redoku.place_if_valid(6, 7, Some(Eight)));
+
+    assert!(redoku.place_if_valid(1, 8, Some(Eight)));
+    assert!(redoku.place_if_valid(2, 8, Some(Two)));
+    assert!(redoku.place_if_valid(4, 8, Some(Nine)));
+    assert!(redoku.place_if_valid(8, 8, Some(Three)));
 
     redoku
 }
