@@ -26,21 +26,22 @@ pub fn read_u8_in_range(rand: &mut Randomizer, mut range: Range<u8>) -> u8 {
 }
 
 pub fn random_cell_value(rand: &mut Randomizer) -> Value {
-    Value::from_u8(read_u8_in_range(rand, 0..9))
+    read_u8_in_range(rand, 0..9).into()
 }
 
-// pub fn shuffle_value_range(rand: &mut Randomizer) -> [Value; 9] {
-//     let mut i = 9u8;
-//     let mut values = [One, Two, Three, Four, Five, Six, Seven, Eight, Nine];
+pub fn shuffle_value_range(rand: &mut Randomizer) -> [u8; 9] {
+    let mut i = 9u8;
+    // let mut values = [One, Two, Three, Four, Five, Six, Seven, Eight, Nine];
+    let mut values = [0, 1, 2, 3, 4, 5, 6, 7, 8];
 
-//     while i > 1 {
-//         i -= 1;
+    while i > 1 {
+        i -= 1;
 
-//         values.swap(i as usize, read_u8_in_range(rand, 0..i) as usize);
-//     }
+        values.swap(i as usize, read_u8_in_range(rand, 0..i) as usize);
+    }
 
-//     values
-// }
+    values
+}
 
 pub fn get_very_easy_redoku() -> Redoku {
     let mut redoku = Redoku::new();
@@ -109,7 +110,7 @@ pub fn get_very_easy_redoku() -> Redoku {
 }
 
 pub fn get_easy_redoku() -> Redoku {
-    let mut redoku = Redoku::new();
+    let mut redoku = Redoku::with_capacity(2);
 
     redoku.place_if_valid(0, 0, Some(Two));
     redoku.place_if_valid(4, 0, Some(Five));
@@ -164,7 +165,7 @@ pub fn get_easy_redoku() -> Redoku {
 }
 
 pub fn get_medium_redoku() -> Redoku {
-    let mut redoku = Redoku::new();
+    let mut redoku = Redoku::with_capacity(2);
 
     redoku.place_if_valid(1, 0, Some(Nine));
     redoku.place_if_valid(3, 0, Some(Six));
@@ -214,7 +215,7 @@ pub fn get_medium_redoku() -> Redoku {
 }
 
 pub fn get_hard_redoku() -> Redoku {
-    let mut redoku = Redoku::new();
+    let mut redoku = Redoku::with_capacity(13);
 
     redoku.place_if_valid(7, 0, Some(Three));
     redoku.place_if_valid(8, 0, Some(Two));
@@ -257,7 +258,7 @@ pub fn get_hard_redoku() -> Redoku {
 }
 
 pub fn get_evil_redoku() -> Redoku {
-    let mut redoku = Redoku::new();
+    let mut redoku = Redoku::with_capacity(13);
 
     redoku.place_if_valid(6, 1, Some(Five));
     redoku.place_if_valid(7, 1, Some(Two));
@@ -296,7 +297,7 @@ pub fn get_evil_redoku() -> Redoku {
 }
 
 pub fn get_evil_redoku2() -> Redoku {
-    let mut redoku = Redoku::new();
+    let mut redoku = Redoku::with_capacity(13);
 
     assert!(redoku.place_if_valid(0, 1, Some(Five)));
     assert!(redoku.place_if_valid(2, 1, Some(Eight)));

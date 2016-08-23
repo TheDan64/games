@@ -9,7 +9,6 @@ use extra::rand::Randomizer;
 use value::Value;
 use redoku::Redoku;
 
-#[derive(Debug, PartialEq)]
 enum Solution {
     Incomplete(u32),
     NonUnique,
@@ -19,11 +18,9 @@ enum Solution {
 fn depth_first_search(redoku: &mut Redoku, x: u8, y: u8) -> Solution {
     use self::Solution::*;
 
-    let mut rand = Randomizer::new(0);
-    let mut local_iter_count = 0;
-    let mut stop_counting = false;
+    let mut iteration_counter = Some(0);
 
-    let (iterations, no_starting_value) = if redoku[(x, y)] == None {
+    let (loop_iterations, no_starting_value) = if redoku[(x, y)] == None {
         (9, true)
     } else {
         (1, false)
@@ -37,17 +34,17 @@ fn depth_first_search(redoku: &mut Redoku, x: u8, y: u8) -> Solution {
 
     let mut solution = None;
 
-    for i in 0..iterations {
-        if no_starting_value && !redoku.place_if_valid(x, y, Some(Value::from_u8(i))) {
+    for i in 0..loop_iterations {
+        if no_starting_value && !redoku.place_if_valid(x, y, Some(i.into())) {
             continue;
         }
 
-        if redoku.empty_cells() == 0 {
-            return Unique(local_iter_count);
+        if redoku.is_completed() {
+            return Unique(iteration_counter.unwrap_or(0));
         }
 
-        if !stop_counting {
-            local_iter_count += 1;
+        if let Some(ref mut count) = iteration_counter {
+            *count += 1;
         }
 
         match depth_first_search(redoku, nextx, nexty) {
@@ -55,21 +52,15 @@ fn depth_first_search(redoku: &mut Redoku, x: u8, y: u8) -> Solution {
             Unique(iter_count) => {
                 match solution {
                     Some(Unique(_)) => return NonUnique,
-                    None => solution = Some(Unique(iter_count)),
-                    _ => unreachable!("Logic error: Solution set to non unique or imcomplete")
+                    None => solution = Some(Unique(iteration_counter.unwrap_or(0) + iter_count)),
+                    _ => unreachable!("Logic error: Solution set to non unique or incomplete")
                 }
 
-                if !stop_counting {
-                    local_iter_count += iter_count;
-                }
-
-                stop_counting = true;
+                iteration_counter = None;
             },
-            Incomplete(iter_count) => {
-                if !stop_counting {
-                    local_iter_count += iter_count
-                }
-            },
+            Incomplete(iter_count) => if let Some(ref mut count) = iteration_counter {
+                *count += iter_count;
+            }
         };
 
         if no_starting_value {
@@ -78,10 +69,10 @@ fn depth_first_search(redoku: &mut Redoku, x: u8, y: u8) -> Solution {
     }
 
     match solution {
-        Some(Unique(_)) => Unique(local_iter_count),
+        Some(Unique(iter_count)) => Unique(iter_count),
         Some(NonUnique) => unreachable!("Logic error: NonUnique set as solution"),
         Some(Incomplete(_)) => unreachable!("Logic error: Incomplete set as solution"),
-        None => Incomplete(local_iter_count),
+        None => Incomplete(iteration_counter.unwrap_or(0)),
     }
 }
 
@@ -155,6 +146,13 @@ fn test_solves_hard_redoku(b: &mut Bencher) {
 #[bench]
 fn test_solves_evil_redoku(b: &mut Bencher) {
     let redoku = utils::get_evil_redoku();
+
+    b.iter(|| { assert!(redoku.has_unique_solution()) })
+}
+
+#[bench]
+fn test_solves_evil_redoku2(b: &mut Bencher) {
+    let redoku = utils::get_evil_redoku2();
 
     b.iter(|| { assert!(redoku.has_unique_solution()) })
 }

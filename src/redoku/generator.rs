@@ -3,7 +3,7 @@ use grader::{Difficulty, RedokuGrader};
 use redoku::Redoku;
 use solver::RedokuSolver;
 use utils::{random_cell_value, read_u8_in_range};
-use value::Value;
+// use value::Value;
 
 #[derive(Debug)]
 pub struct RedokuGenerator {
@@ -12,7 +12,13 @@ pub struct RedokuGenerator {
 
 impl RedokuGenerator {
     pub fn build(rand: &mut Randomizer, difficulty: Difficulty) -> Redoku {
-        let mut redoku = Redoku::new(); // TODO: with_capacity based on difficulty
+        let mut redoku = Redoku::with_capacity(match difficulty { // TODO: Tweak
+            Difficulty::VeryEasy => 0,
+            Difficulty::Easy => 0,
+            Difficulty::Medium => 2,
+            Difficulty::Hard => 13,
+            Difficulty::Evil => 15,
+        });
         let mut filled_cells = 0;
 
         loop {
@@ -35,7 +41,6 @@ impl RedokuGenerator {
                         break;
                     }
                 }
-
             };
 
             println!("Attempting to solve:\n{:?}", redoku);

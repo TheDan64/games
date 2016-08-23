@@ -2,6 +2,8 @@ use std::cmp::PartialEq;
 use std::fmt;
 use std::ops::{Index, IndexMut};
 use value::{Value, ValueSet};
+#[cfg(test)]
+use test::{Bencher, black_box};
 
 #[derive(Clone, Copy, Debug)]
 pub enum Grid {
@@ -13,6 +15,7 @@ pub enum Grid {
 impl Index<Grid> for [ValueSet] {
     type Output = ValueSet;
 
+    #[inline(always)]
     fn index(&self, index: Grid) -> &ValueSet {
         match index {
             Grid::Column(val) if val < 9 => &self[val as usize],
@@ -24,6 +27,7 @@ impl Index<Grid> for [ValueSet] {
 }
 
 impl IndexMut<Grid> for [ValueSet] {
+    #[inline(always)]
     fn index_mut(&mut self, index: Grid) -> &mut ValueSet {
         match index {
             Grid::Column(val) if val < 9 => &mut self[val as usize],
@@ -38,7 +42,7 @@ impl IndexMut<Grid> for [ValueSet] {
 pub struct Redoku {
     cells: [Option<Value>; 81],
     grid_values: [ValueSet; 27],
-    pub temp_grid_values: Vec<(Grid, ValueSet)>, // TODO: Remove pub (debug)
+    temp_grid_values: Vec<(Grid, ValueSet)>,
 }
 
 impl Redoku {
@@ -76,6 +80,7 @@ impl Redoku {
         true
     }
 
+    #[inline(always)]
     pub fn place_if_valid(&mut self, x: u8, y: u8, value: Option<Value>) -> bool {
         let original_value = self[(x, y)];
 
@@ -117,6 +122,17 @@ impl Redoku {
         }
 
         cells
+    }
+
+    pub fn is_completed(&self) -> bool {
+        for i in 0..9 {
+            // Subset compare is ~99% cheaper than .len() (from ~4ns to <1ns)
+            if self.grid_values[Grid::Block(i)] < ValueSet::new(0b1_1111_1111) {
+                return false;
+            };
+        }
+
+        true
     }
 
     pub fn clear(&mut self) {
@@ -168,7 +184,7 @@ impl Redoku {
     pub fn insert_temporary_values(&mut self, grid: Grid, values: ValueSet) {
         self.temp_grid_values.push((grid, values));
 
-        println!("Inserted temp vals at {:?}: {:?}", grid, values);
+        // println!("Inserted temp vals at {:?}: {:?}", grid, values);
 
         self.grid_values[grid] |= values;
     }
@@ -181,6 +197,11 @@ impl Redoku {
 
     pub fn temporary_values(&self) -> usize {
         self.temp_grid_values.len()
+    }
+
+    // REMOVE: This is just for debugging
+    pub fn get_temp_values(&self) -> &Vec<(Grid, ValueSet)> {
+        &self.temp_grid_values
     }
 }
 
@@ -269,9 +290,9 @@ fn test_indexing() {
         for y in 0..9 {
             assert!(redoku[(x, y)] == None);
 
-            redoku.cells[9 * y as usize + x as usize] = Some(Value::from_u8(y));
+            redoku.cells[9 * y as usize + x as usize] = Some(y.into());
 
-            assert!(redoku[(x, y)] == Some(Value::from_u8(y)));
+            assert!(redoku[(x, y)] == Some(y.into()));
         }
     }
 }
@@ -296,4 +317,43 @@ fn test_place_if_valid() {
     assert!(!redoku.place_if_valid(2, 8, Some(One)));
 
     assert!(redoku.place_if_valid(1, 1, None));
+}
+
+#[bench]
+fn test_empty_cells(b: &mut Bencher) {
+    use utils;
+
+    let redoku = utils::get_very_easy_redoku();
+
+    b.iter(|| {
+        let redoku = black_box(&redoku);
+
+        assert_eq!(redoku.empty_cells(), 30);
+    });
+}
+
+#[bench]
+fn test_is_completed(b: &mut Bencher) {
+    use utils;
+
+    let redoku = utils::get_very_easy_redoku();
+
+    b.iter(|| {
+        let redoku = black_box(&redoku);
+
+        assert!(!redoku.is_completed());
+    });
+}
+
+#[bench]
+fn test_can_place(b: &mut Bencher) {
+    use utils;
+
+    let redoku = utils::get_evil_redoku();
+
+    b.iter(|| {
+        let redoku = black_box(&redoku);
+
+        assert!(redoku.can_place(8, 6, Value::Six));
+    });
 }

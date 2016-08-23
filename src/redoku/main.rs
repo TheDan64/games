@@ -1,6 +1,6 @@
 //! Sudoku clone by Daniel Kolsoi
 //! Dedicated to the Redox community
-//! Approach and methodology is based on the paper:
+//! Approach and methodology is mostly based on the paper:
 //! http://zhangroup.aporc.org/images/files/Paper_3485.pdf
 
 #![feature(test)]
@@ -32,18 +32,18 @@ impl Game {
     }
 }
 
-fn render() {
+// fn render() {
 
-}
+// }
 
 fn main() {
     println!("Hello, Redox!");
 
     // Test:
-    use utils::get_evil_redoku;
+    use utils::get_evil_redoku2;
     use solver::RedokuSolver;
 
-    let redoku = get_evil_redoku();
+    let redoku = get_evil_redoku2();
 
     redoku.find_unique_solution();
 }

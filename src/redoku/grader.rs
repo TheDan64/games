@@ -1,12 +1,14 @@
+use extra::rand::Randomizer;
 use redoku::{Grid, Redoku};
 use solver::RedokuSolver;
 use std::cmp::{max, min};
 use value::Value::*;
 use value::{Value, ValueSet};
+use utils::{random_cell_value, read_u8_in_range};
 #[cfg(test)]
 use test::Bencher;
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum Difficulty {
     VeryEasy,
     Easy,
@@ -27,14 +29,12 @@ fn try_row_col_block_elimination(redoku: &mut Redoku) -> bool {
             }
 
             let mut values = redoku.calculate_impossible_values(x, y);
-            // let count = values.len();
-            // let sum: usize = values.iter().sum();
 
             let (count, sum) = values.fold((0, 0), |(a, b), v| (a + 1, b + v as u8));
 
             // Place the missing value determined from 36 (sum(0...8))
             if count == 8 {
-                assert!(redoku.place_if_valid(x, y, Some(Value::from_u8(36 - sum))));
+                assert!(redoku.place_if_valid(x, y, Some((36 - sum).into()))); // TODO: Remove assertion?
 
                 success = true;
             }
@@ -138,23 +138,18 @@ fn try_look_for_twins_triplets(redoku: &mut Redoku) -> (bool, bool) {
 
             let mut invalid_twin = false;
 
-            println!("Starting at ({},{})", x, y);
-
             for i in 0..9 {
                 let (row_x, row_y) = (i, y);
 
                 if (row_x, row_y) != (x, y) && redoku[(row_x, row_y)].is_none() {
-                    println!("Row: Visiting ({},{})", row_x, row_y);
                     let mut current_values = redoku.calculate_possible_values(row_x, row_y);
 
                     let len = current_values.len();
 
-                    if len == 1 && redoku.place_if_valid(row_x, row_y, current_values.next()){
-                        println!("(Row) Placed {:?} at {},{}!", redoku[(row_x, row_y)], row_x, row_y);
-                        continue;
-                    }
-
-                    println!("{:?} ? {:?}", current_values, row_values);
+                    // Tried looking for a lone ranger here as an optimization, but sends evil redoku2 into a loop
+                    // if len == 1 && redoku.place_if_valid(row_x, row_y, current_values.next()){
+                    //     continue;
+                    // }
 
                     if current_values <= row_values && len > 1 {
                         row_values_count += 1;
@@ -162,10 +157,7 @@ fn try_look_for_twins_triplets(redoku: &mut Redoku) -> (bool, bool) {
                         if row_values.len() == 3 {
                             invalid_twin = true;
                         }
-
-                        println!("Row - Found {:?} <= {:?}", current_values, row_values);
                     } else if current_values > row_values && len == 3 {
-                        println!("Row - Found {:?} > {:?}", current_values, row_values);
                         // FIXME: 2 -> 3 should not be valid
                         row_values = current_values;
                         row_values_count += 1;
@@ -178,9 +170,6 @@ fn try_look_for_twins_triplets(redoku: &mut Redoku) -> (bool, bool) {
             }
 
             if empty_rows > row_values_count {
-                if y == 3 {
-                    println!("{}, {}", empty_rows, row_values_count);
-                }
                 if row_values_count == 2 && !invalid_twin {
                     redoku.insert_temporary_values(Grid::Row(y), row_values);
                     redoku.insert_temporary_values(Grid::Block(3 * block_grid_y + block_grid_x), row_values);
@@ -198,25 +187,22 @@ fn try_look_for_twins_triplets(redoku: &mut Redoku) -> (bool, bool) {
                 let (column_x, column_y) = (x, i);
 
                 if (column_x, column_y) != (x, y) && redoku[(column_x, column_y)].is_none() {
-                    println!("Column: Visiting ({},{})", column_x, column_y);
                     let mut current_values = redoku.calculate_possible_values(column_x, column_y);
 
                     let len = current_values.len();
 
-                    if len == 1 && redoku.place_if_valid(column_x, column_y, current_values.next()){
-                        println!("(Column) Placed {:?} at {},{}!", redoku[(column_x, column_y)], column_x, column_y);
-                        continue;
-                    }
+                    // Tried looking for a lone ranger here as an optimization, but sends evil redoku2 into a loop
+                    // if len == 1 && redoku.place_if_valid(column_x, column_y, current_values.next()){
+                    //     continue;
+                    // }
 
                     if current_values <= column_values && len > 1 {
-                        println!("Column - Found {:?} <= {:?}", current_values, row_values);
                         column_values_count += 1;
 
                         if column_values.len() == 3 {
                             invalid_twin = true;
                         }
                     } else if current_values > column_values && len == 3 {
-                        println!("Column - Found {:?} > {:?}", current_values, row_values);
                         column_values = current_values;
                         column_values_count += 1;
 
@@ -245,15 +231,14 @@ fn try_look_for_twins_triplets(redoku: &mut Redoku) -> (bool, bool) {
                 let (block_x, block_y) = (block_grid_x * 3 + i % 3, block_grid_y * 3 + i / 3);
 
                 if (block_x, block_y) != (x, y) && redoku[(block_x, block_y)].is_none() {
-                    println!("Block: Visiting ({},{})", block_x, block_y);
                     let mut current_values = redoku.calculate_possible_values(block_x, block_y);
 
                     let len = current_values.len();
 
-                    if len == 1 && redoku.place_if_valid(block_x, block_y, current_values.next()){
-                        println!("(Block) Placed {:?} at {},{}!", redoku[(block_x, block_y)], block_x, block_y);
-                        continue;
-                    }
+                    // Tried looking for a lone ranger here as an optimization, but sends evil redoku2 into a loop
+                    // if len == 1 && redoku.place_if_valid(block_x, block_y, current_values.next()){
+                    //     continue;
+                    // }
 
                     if current_values <= block_values && len > 1 {
                         block_values_count += 1;
@@ -337,24 +322,30 @@ fn score_cell_row_column_count(redoku: &Redoku) -> f32 {
 }
 
 fn score_human_solving_techniques(redoku: &Redoku) -> f32 {
-    // Technique                               | Score
-    // Row, Column, and Block Elimination      |   1
-    // Lone rangers in Block/Column/Row        |   2
-    // Twins in Block/Column/Row               |   3
-    // Triplets in Block/Column/Row            |   4
-    // Brute-force Elimination                 |   5
+    // Technique                          | Score
+    // Row, Column, and Block Elimination |   1
+    // Lone rangers in Block/Column/Row   |   2
+    // Twins in Block/Column/Row          |   3
+    // Triplets in Block/Column/Row       |   4
+    // Brute-force Elimination            |   5
 
     let mut max_score = 0;
     let mut redoku = redoku.clone();
 
-    loop {
-        let rcb_elimination = try_row_col_block_elimination(&mut redoku);
+    'outer: loop {
+        let mut rcb_elimination = false;
 
-        if rcb_elimination {
-            max_score = max(max_score, 1);
+        'inner: loop {
+            if try_row_col_block_elimination(&mut redoku) {
+                rcb_elimination = true;
 
-            if redoku.empty_cells() == 0 {
-                break;
+                max_score = max(max_score, 1);
+
+                if redoku.empty_cells() == 0 {
+                    break 'outer;
+                }
+            } else {
+                break 'inner;
             }
         }
 
@@ -387,12 +378,14 @@ fn score_human_solving_techniques(redoku: &Redoku) -> f32 {
         }
 
         // If no other method worked, need to brute force to solve. Instead,
-        // (assuming there is a valid solution means) we can skip doing so
-        // at the expense of our iteration count
+        // (assuming there is a valid solution means) we can skip doing so.
+        // It should be noted that there is an edge case to this approach:
+        // If we get thrown into an invalid state (I'm looking at you
+        // try_look_for_twins_triplets) then the max_score would jump up
+        // to 5 even if it should really be a 3 or 4 for example.
         if !rcb_elimination && !lone_ranger && !twins && !triplets {
             if redoku.temporary_values() > 0 {
                 redoku.remove_temporary_values();
-
                 continue;
             }
 
@@ -641,7 +634,7 @@ fn test_twins_triplets() {
 
     try_look_for_twins_triplets(&mut redoku);
 
-    println!("{:?}", redoku.temp_grid_values);
+    // println!("{:?}", redoku.temp_grid_values);
     println!("1,0: {:?}", redoku.calculate_possible_values(1, 0));
     println!("0,1: {:?}", redoku.calculate_possible_values(0, 1));
     println!("2,1: {:?}", redoku.calculate_possible_values(2, 1));
@@ -681,42 +674,50 @@ fn test_grade_easy_redoku() {
 
     let redoku = utils::get_easy_redoku();
 
+    println!("\n{:?}", redoku);
+
     let grade = redoku.grade_difficulty();
 
     assert!(grade == Difficulty::Easy, "Graded a {:?}", grade);
 }
 
-#[test]
-fn test_grade_medium_redoku() {
+#[bench]
+fn test_grade_medium_redoku(b: &mut Bencher) {
     use utils;
 
     let redoku = utils::get_medium_redoku();
 
-    let grade = redoku.grade_difficulty();
+    b.iter(|| {
+        let grade = redoku.grade_difficulty();
 
-    assert!(grade == Difficulty::Medium, "Graded a {:?}", grade);
+        assert!(grade == Difficulty::Medium, "Graded a {:?}", grade);
+    });
 }
 
-#[test]
-fn test_grade_hard_redoku() {
+#[bench]
+fn test_grade_hard_redoku(b: &mut Bencher) {
     use utils;
 
     let redoku = utils::get_hard_redoku();
 
-    let grade = redoku.grade_difficulty();
+    b.iter(|| {
+        let grade = redoku.grade_difficulty();
 
-    assert!(grade == Difficulty::Hard, "Graded a {:?}", grade);
+        assert!(grade == Difficulty::Hard, "Graded a {:?}", grade);
+    });
 }
 
-#[test]
-fn test_grade_evil_redoku() {
+#[bench]
+fn test_grade_evil_redoku(b: &mut Bencher) {
     use utils;
 
     let redoku = utils::get_evil_redoku();
 
-    let grade = redoku.grade_difficulty();
+    b.iter(|| {
+        let grade = redoku.grade_difficulty();
 
-    assert!(grade == Difficulty::Evil, "Graded a {:?}", grade);
+        assert!(grade == Difficulty::Evil, "Graded a {:?}", grade);
+    });
 }
 
 // #[test]
@@ -724,6 +725,13 @@ fn test_grade_evil_redoku() {
 //     use utils;
 
 //     let redoku = utils::get_evil_redoku2();
+
+//     println!("\n{:?}", redoku);
+
+//     // if let Some((sol, itr)) = redoku.find_unique_solution() {
+//     //     println!("{:?}", sol);
+//     //     println!("{} Iterations", itr);
+//     // }
 
 //     let grade = redoku.grade_difficulty();
 

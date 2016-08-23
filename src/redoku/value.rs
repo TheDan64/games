@@ -16,9 +16,9 @@ pub enum Value {
     Nine  = 8,
 }
 
-impl Value {
-    pub fn from_u8(val: u8) -> Value {
-        match val {
+impl From<u8> for Value {
+    fn from(value: u8) -> Self {
+        match value {
             0 => Value::One,
             1 => Value::Two,
             2 => Value::Three,
@@ -28,7 +28,7 @@ impl Value {
             6 => Value::Seven,
             7 => Value::Eight,
             8 => Value::Nine,
-            _ => panic!("Value {} is not a valid Value", val)
+            _ => panic!("Value {} is not a valid Value", value)
         }
     }
 }
@@ -155,7 +155,7 @@ impl Iterator for ValueSet {
 
         self.set -= rightmost_one;
 
-        Some(Value::from_u8((rightmost_one - 1).count_ones() as u8))
+        Some(((rightmost_one - 1).count_ones() as u8).into())
     }
 }
 
