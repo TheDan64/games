@@ -53,6 +53,7 @@ pub fn get_very_easy_redoku() -> Redoku {
     assert!(redoku.place_if_valid(5, 0, Some(Five)));
     assert!(redoku.place_if_valid(8, 0, Some(Nine)));
 
+    assert!(redoku.place_if_valid(0, 1, Some(Two)));
     assert!(redoku.place_if_valid(3, 1, Some(One)));
     assert!(redoku.place_if_valid(4, 1, Some(Eight)));
     assert!(redoku.place_if_valid(7, 1, Some(Six)));

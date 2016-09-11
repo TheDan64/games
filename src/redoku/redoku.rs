@@ -249,7 +249,7 @@ impl fmt::Debug for Redoku {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use std::char;
 
-        let mut string = String::new();
+        let mut string = String::with_capacity(325);
 
         string.push_str("┏━━━━━━━━━━━━━━━━━━━━━━━┓");
 
@@ -328,7 +328,7 @@ fn test_empty_cells(b: &mut Bencher) {
     b.iter(|| {
         let redoku = black_box(&redoku);
 
-        assert_eq!(redoku.empty_cells(), 30);
+        assert_eq!(redoku.empty_cells(), 29);
     });
 }
 

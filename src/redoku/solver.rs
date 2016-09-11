@@ -5,17 +5,19 @@ use value::Value::*;
 #[cfg(test)]
 use utils;
 
+use std::marker::Sized;
 use extra::rand::Randomizer;
 use value::Value;
 use redoku::Redoku;
 
+#[derive(Debug)]
 enum Solution {
+    Complete(Redoku, u32),
     Incomplete(u32),
     NonUnique,
-    Unique(u32),
 }
 
-fn depth_first_search(redoku: &mut Redoku, x: u8, y: u8) -> Solution {
+fn depth_first_search(redoku: &mut Redoku, x: u8, y: u8, unique: bool) -> Solution {
     use self::Solution::*;
 
     let mut iteration_counter = Some(0);
@@ -40,19 +42,23 @@ fn depth_first_search(redoku: &mut Redoku, x: u8, y: u8) -> Solution {
         }
 
         if redoku.is_completed() {
-            return Unique(iteration_counter.unwrap_or(0));
+            return Complete(redoku.clone(), iteration_counter.unwrap_or(0));
         }
 
         if let Some(ref mut count) = iteration_counter {
             *count += 1;
         }
 
-        match depth_first_search(redoku, nextx, nexty) {
+        match depth_first_search(redoku, nextx, nexty, unique) {
             NonUnique => return NonUnique,
-            Unique(iter_count) => {
+            Complete(redoku, iter_count) => {
+                if !unique {
+                    return Complete(redoku, iter_count);
+                }
+
                 match solution {
-                    Some(Unique(_)) => return NonUnique,
-                    None => solution = Some(Unique(iteration_counter.unwrap_or(0) + iter_count)),
+                    Some(Complete(_, _)) => return NonUnique,
+                    None => solution = Some(Complete(redoku, iteration_counter.unwrap_or(0) + iter_count)),
                     _ => unreachable!("Logic error: Solution set to non unique or incomplete")
                 }
 
@@ -69,33 +75,35 @@ fn depth_first_search(redoku: &mut Redoku, x: u8, y: u8) -> Solution {
     }
 
     match solution {
-        Some(Unique(iter_count)) => Unique(iter_count),
+        Some(Complete(redoku, iter_count)) => Complete(redoku, iter_count),
         Some(NonUnique) => unreachable!("Logic error: NonUnique set as solution"),
         Some(Incomplete(_)) => unreachable!("Logic error: Incomplete set as solution"),
         None => Incomplete(iteration_counter.unwrap_or(0)),
     }
 }
 
-pub trait RedokuSolver<R, S> {
-    fn find_unique_solution(&self) -> Option<(R, u32)>;
-    fn has_unique_solution(&self) -> bool;
+pub trait RedokuSolver {
+    fn find_solution(&self, unique: bool) -> Option<(Self, u32)> where Self: Sized;
+    fn has_solution(&self, unique: bool) -> bool;
 }
 
-impl RedokuSolver<Redoku, Solution> for Redoku {
-    fn find_unique_solution(&self) -> Option<(Redoku, u32)> {
+impl RedokuSolver for Redoku {
+    fn find_solution(&self, unique: bool) -> Option<(Redoku, u32)> {
         use self::Solution::*;
 
         let mut redoku = self.clone();
 
-        match depth_first_search(&mut redoku, 0, 0) {
+        // println!("\n{:?}", redoku);
+
+        match depth_first_search(&mut redoku, 0, 0, unique) {
             Incomplete(_) => unreachable!("Logic error: Incomplete at top level"),
-            Unique(iterations) => Some((redoku, iterations)),
+            Complete(redoku, iterations) => Some((redoku, iterations)),
             NonUnique => None,
         }
     }
 
-    fn has_unique_solution(&self) -> bool {
-        match self.find_unique_solution() {
+    fn has_solution(&self, unique: bool) -> bool {
+        match self.find_solution(unique) {
             Some(_) => true,
             None => false,
         }
@@ -112,47 +120,47 @@ fn test_no_unique_solution() {
 
     assert!(redoku.place_if_valid(7, 6, Some(Three)));
 
-    assert!(!redoku.has_unique_solution());
+    assert!(!redoku.has_solution(true));
 }
 
 #[bench]
 fn test_solves_very_easy_redoku(b: &mut Bencher) {
     let redoku = utils::get_very_easy_redoku();
 
-    b.iter(|| { assert!(redoku.has_unique_solution()) })
+    b.iter(|| { assert!(redoku.has_solution(true)) })
 }
 
 #[bench]
 fn test_solves_easy_redoku(b: &mut Bencher) {
     let redoku = utils::get_easy_redoku();
 
-    b.iter(|| { assert!(redoku.has_unique_solution()) })
+    b.iter(|| { assert!(redoku.has_solution(true)) })
 }
 
 #[bench]
 fn test_solves_medium_redoku(b: &mut Bencher) {
     let redoku = utils::get_medium_redoku();
 
-    b.iter(|| { assert!(redoku.has_unique_solution()) })
+    b.iter(|| { assert!(redoku.has_solution(true)) })
 }
 
 #[bench]
 fn test_solves_hard_redoku(b: &mut Bencher) {
     let redoku = utils::get_hard_redoku();
 
-    b.iter(|| { assert!(redoku.has_unique_solution()) })
+    b.iter(|| { assert!(redoku.has_solution(true)) })
 }
 
 #[bench]
 fn test_solves_evil_redoku(b: &mut Bencher) {
     let redoku = utils::get_evil_redoku();
 
-    b.iter(|| { assert!(redoku.has_unique_solution()) })
+    b.iter(|| { assert!(redoku.has_solution(true)) })
 }
 
 #[bench]
 fn test_solves_evil_redoku2(b: &mut Bencher) {
     let redoku = utils::get_evil_redoku2();
 
-    b.iter(|| { assert!(redoku.has_unique_solution()) })
+    b.iter(|| { assert!(redoku.has_solution(true)) })
 }

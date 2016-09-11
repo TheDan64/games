@@ -142,7 +142,7 @@ fn try_look_for_twins_triplets(redoku: &mut Redoku) -> (bool, bool) {
                 let (row_x, row_y) = (i, y);
 
                 if (row_x, row_y) != (x, y) && redoku[(row_x, row_y)].is_none() {
-                    let mut current_values = redoku.calculate_possible_values(row_x, row_y);
+                    let current_values = redoku.calculate_possible_values(row_x, row_y);
 
                     let len = current_values.len();
 
@@ -187,7 +187,7 @@ fn try_look_for_twins_triplets(redoku: &mut Redoku) -> (bool, bool) {
                 let (column_x, column_y) = (x, i);
 
                 if (column_x, column_y) != (x, y) && redoku[(column_x, column_y)].is_none() {
-                    let mut current_values = redoku.calculate_possible_values(column_x, column_y);
+                    let current_values = redoku.calculate_possible_values(column_x, column_y);
 
                     let len = current_values.len();
 
@@ -231,7 +231,7 @@ fn try_look_for_twins_triplets(redoku: &mut Redoku) -> (bool, bool) {
                 let (block_x, block_y) = (block_grid_x * 3 + i % 3, block_grid_y * 3 + i / 3);
 
                 if (block_x, block_y) != (x, y) && redoku[(block_x, block_y)].is_none() {
-                    let mut current_values = redoku.calculate_possible_values(block_x, block_y);
+                    let current_values = redoku.calculate_possible_values(block_x, block_y);
 
                     let len = current_values.len();
 
@@ -408,9 +408,9 @@ fn score_search_iterations(redoku: &Redoku) -> f32 {
     // Hard       |   10,000 - 99,999  |   4
     // Evil       |  100,000 >         |   5
 
-    let (_, iterations) = redoku.find_unique_solution().unwrap(); // REVIEW: Could be bad assumption
+    let (_, iterations) = redoku.find_solution(true).unwrap(); // REVIEW: Could be bad assumption
 
-    println!("Iterations: {}", iterations);
+    // println!("Iterations: {}", iterations);
 
     match iterations {
             0...99 => 1.0,
@@ -434,13 +434,13 @@ impl RedokuGrader for Redoku {
 
         let total_score = 0.4 * s1 + 0.2 * s2 + 0.2 * s3 + 0.2 * s4;
 
-        println!("Score Rubric:
-Cell Total Count:   0.4 * {}
-Cell Row Col Count: 0.2 * {}
-Human Solving Tech: 0.2 * {}
-Search Iterations:  0.2 * {}
-                  +----------
-                  =       {}", s1, s2, s3, s4, total_score);
+//        println!("Score Rubric:
+// Cell Total Count:   0.4 * {}
+// Cell Row Col Count: 0.2 * {}
+// Human Solving Tech: 0.2 * {}
+// Search Iterations:  0.2 * {}
+//                   +----------
+//                   =       {}", s1, s2, s3, s4, total_score);
 
         match total_score.round() {
             1.0 => Difficulty::VeryEasy,
@@ -624,37 +624,11 @@ fn test_twins_triplets() {
     assert!(redoku.calculate_possible_values(1, 0) == ValueSet::new(0b0_0001_1010));
     assert!(redoku.calculate_possible_values(2, 1) == ValueSet::new(0b0_0001_1010));
 
-    println!("\n1,0: {:?}", redoku.calculate_possible_values(1, 0));
-    println!("1,3: {:?}", redoku.calculate_possible_values(1, 3));
-    println!("1,4: {:?}", redoku.calculate_possible_values(1, 4));
-    println!("1,5: {:?}", redoku.calculate_possible_values(1, 5));
-    println!("1,6: {:?}", redoku.calculate_possible_values(1, 6));
-    println!("1,7: {:?}", redoku.calculate_possible_values(1, 7));
-    println!("1,8: {:?}", redoku.calculate_possible_values(1, 8));
-
     try_look_for_twins_triplets(&mut redoku);
 
-    // println!("{:?}", redoku.temp_grid_values);
-    println!("1,0: {:?}", redoku.calculate_possible_values(1, 0));
-    println!("0,1: {:?}", redoku.calculate_possible_values(0, 1));
-    println!("2,1: {:?}", redoku.calculate_possible_values(2, 1));
-
-    println!("1,3: {:?}", redoku.calculate_possible_values(1, 3));
-
-    println!("3,0: {:?}", redoku.calculate_possible_values(3, 0));
-    println!("4,0: {:?}", redoku.calculate_possible_values(4, 0));
-    println!("4,1: {:?}", redoku.calculate_possible_values(4, 1));
-    println!("5,1: {:?}", redoku.calculate_possible_values(5, 1));
-
-    println!("6,0: {:?}", redoku.calculate_possible_values(6, 0));
-    println!("7,0: {:?}", redoku.calculate_possible_values(7, 0));
-    println!("8,0: {:?}", redoku.calculate_possible_values(8, 0));
     assert!(redoku.calculate_possible_values(0, 1) == ValueSet::new(0b0_0001_1000));
     assert!(redoku.calculate_possible_values(2, 1) == ValueSet::new(0b0_0001_1000));
     assert!(redoku.calculate_possible_values(1, 0) == ValueSet::new(0b0_0000_0010));
-    println!("1, 0: {:?}", redoku.calculate_possible_values(1, 0));
-    println!("3, 0: {:?}", redoku.calculate_possible_values(3, 0));
-    println!("4, 0: {:?}", redoku.calculate_possible_values(4, 0));
 }
 
 #[test]
@@ -674,7 +648,7 @@ fn test_grade_easy_redoku() {
 
     let redoku = utils::get_easy_redoku();
 
-    println!("\n{:?}", redoku);
+    // println!("\n{:?}", redoku);
 
     let grade = redoku.grade_difficulty();
 
@@ -728,7 +702,7 @@ fn test_grade_evil_redoku(b: &mut Bencher) {
 
 //     println!("\n{:?}", redoku);
 
-//     // if let Some((sol, itr)) = redoku.find_unique_solution() {
+//     // if let Some((sol, itr)) = redoku.find_solution(true) {
 //     //     println!("{:?}", sol);
 //     //     println!("{} Iterations", itr);
 //     // }
