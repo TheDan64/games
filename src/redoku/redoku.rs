@@ -126,7 +126,7 @@ impl Redoku {
 
     pub fn is_completed(&self) -> bool {
         for i in 0..9 {
-            // Subset compare is ~99% cheaper than .len() (from ~4ns to <1ns)
+            // Subset compare is 4x cheaper than .len() (from ~4ns to <1ns)
             if self.grid_values[Grid::Block(i)] < ValueSet::new(0b1_1111_1111) {
                 return false;
             };
@@ -183,8 +183,6 @@ impl Redoku {
 
     pub fn insert_temporary_values(&mut self, grid: Grid, values: ValueSet) {
         self.temp_grid_values.push((grid, values));
-
-        // println!("Inserted temp vals at {:?}: {:?}", grid, values);
 
         self.grid_values[grid] |= values;
     }
@@ -280,6 +278,35 @@ impl fmt::Debug for Redoku {
 
         write!(f, "{}", string)
     }
+}
+
+#[macro_export]
+macro_rules! redoku {
+    (@cell [$redoku:ident, $pos:ident]) => {};
+    (@cell [$redoku:ident, $pos:ident] ?, $($tail:tt)*) => {
+        {
+            $pos += 1;
+            $redoku!(@cell [$redoku, $pos] $($tail)*);
+        }
+    };
+    (@cell [$redoku:ident, $pos:ident] $x:expr, $($tail:tt)*) => {
+        {
+            assert!($redoku.place_if_valid($pos % 9, $pos / 9, Some(($x - 1).into())));
+
+            $pos += 1;
+            redoku!(@cell [$redoku, $pos] $($tail)*);
+        }
+    };
+    ($($args:tt)*) => {
+        {
+            let mut redoku = Redoku::new(); // TODO: with_capacity support?
+            let mut pos = 0;
+
+            redoku!(@cell [redoku, pos] $($args)*);
+
+            redoku
+        }
+    };
 }
 
 #[test]
