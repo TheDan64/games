@@ -3,7 +3,7 @@ use redoku::{Grid, Redoku};
 use solver::RedokuSolver;
 use std::cmp::{max, min};
 use value::Value::*;
-use value::{Value, ValueSet};
+use value::ValueSet;
 use utils::{random_cell_value, read_u8_in_range};
 #[cfg(test)]
 use test::Bencher;
@@ -28,14 +28,9 @@ fn try_row_col_block_elimination(redoku: &mut Redoku) -> bool {
                 continue;
             }
 
-            let mut values = redoku.calculate_impossible_values(x, y);
+            let mut values = redoku.calculate_possible_values(x, y);
 
-            let (count, sum) = values.fold((0, 0), |(a, b), v| (a + 1, b + v as u8));
-
-            // Place the missing value determined from 36 (sum(0...8))
-            if count == 8 {
-                assert!(redoku.place_if_valid(x, y, Some((36 - sum).into()))); // TODO: Remove assertion?
-
+            if values.len() == 1 && redoku.place_if_valid(x, y, values.next()) {
                 success = true;
             }
         }

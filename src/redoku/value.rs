@@ -81,6 +81,10 @@ impl ValueSet {
     pub fn is_empty(&self) -> bool {
         self.set == 0
     }
+
+    pub fn is_full(&self) -> bool {
+        self.set == 0b1_1111_1111
+    }
 }
 
 impl BitAnd for ValueSet {

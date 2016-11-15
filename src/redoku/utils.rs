@@ -44,73 +44,36 @@ pub fn shuffle_value_range(rand: &mut Randomizer) -> [u8; 9] {
 }
 
 pub fn get_very_easy_redoku() -> Redoku {
-    let mut redoku = Redoku::new();
+    redoku![
+        ?,6,7, 4,2,5, ?,?,9,
+        2,?,?, 1,8,?, ?,6,?,
+        8,9,?, 6,?,7, ?,5,2,
 
-    assert!(redoku.place_if_valid(1, 0, Some(Six)));
-    assert!(redoku.place_if_valid(2, 0, Some(Seven)));
-    assert!(redoku.place_if_valid(3, 0, Some(Four)));
-    assert!(redoku.place_if_valid(4, 0, Some(Two)));
-    assert!(redoku.place_if_valid(5, 0, Some(Five)));
-    assert!(redoku.place_if_valid(8, 0, Some(Nine)));
+        4,?,?, ?,6,?, 9,1,3,
+        6,?,2, 3,9,4, 5,7,?,
+        9,7,3, 8,?,1, 6,2,?,
 
-    assert!(redoku.place_if_valid(0, 1, Some(Two)));
-    assert!(redoku.place_if_valid(3, 1, Some(One)));
-    assert!(redoku.place_if_valid(4, 1, Some(Eight)));
-    assert!(redoku.place_if_valid(7, 1, Some(Six)));
-
-    assert!(redoku.place_if_valid(0, 2, Some(Eight)));
-    assert!(redoku.place_if_valid(1, 2, Some(Nine)));
-    assert!(redoku.place_if_valid(3, 2, Some(Six)));
-    assert!(redoku.place_if_valid(5, 2, Some(Seven)));
-    assert!(redoku.place_if_valid(7, 2, Some(Five)));
-    assert!(redoku.place_if_valid(8, 2, Some(Two)));
-
-    assert!(redoku.place_if_valid(0, 3, Some(Four)));
-    assert!(redoku.place_if_valid(4, 3, Some(Six)));
-    assert!(redoku.place_if_valid(6, 3, Some(Nine)));
-    assert!(redoku.place_if_valid(7, 3, Some(One)));
-    assert!(redoku.place_if_valid(8, 3, Some(Three)));
-
-    assert!(redoku.place_if_valid(0, 4, Some(Six)));
-    assert!(redoku.place_if_valid(2, 4, Some(Two)));
-    assert!(redoku.place_if_valid(3, 4, Some(Three)));
-    assert!(redoku.place_if_valid(4, 4, Some(Nine)));
-    assert!(redoku.place_if_valid(5, 4, Some(Four)));
-    assert!(redoku.place_if_valid(6, 4, Some(Five)));
-    assert!(redoku.place_if_valid(7, 4, Some(Seven)));
-
-    assert!(redoku.place_if_valid(0, 5, Some(Nine)));
-    assert!(redoku.place_if_valid(1, 5, Some(Seven)));
-    assert!(redoku.place_if_valid(2, 5, Some(Three)));
-    assert!(redoku.place_if_valid(3, 5, Some(Eight)));
-    assert!(redoku.place_if_valid(5, 5, Some(One)));
-    assert!(redoku.place_if_valid(6, 5, Some(Six)));
-    assert!(redoku.place_if_valid(7, 5, Some(Two)));
-
-    assert!(redoku.place_if_valid(3, 6, Some(Two)));
-    assert!(redoku.place_if_valid(4, 6, Some(Four)));
-    assert!(redoku.place_if_valid(5, 6, Some(Three)));
-    assert!(redoku.place_if_valid(6, 6, Some(Seven)));
-    assert!(redoku.place_if_valid(7, 6, Some(Nine)));
-    assert!(redoku.place_if_valid(8, 6, Some(Five)));
-
-    assert!(redoku.place_if_valid(1, 7, Some(Two)));
-    assert!(redoku.place_if_valid(2, 7, Some(Four)));
-    assert!(redoku.place_if_valid(3, 7, Some(Nine)));
-    assert!(redoku.place_if_valid(4, 7, Some(Seven)));
-    assert!(redoku.place_if_valid(5, 7, Some(Six)));
-    assert!(redoku.place_if_valid(6, 7, Some(Eight)));
-
-    assert!(redoku.place_if_valid(1, 8, Some(Three)));
-    assert!(redoku.place_if_valid(3, 8, Some(Five)));
-    assert!(redoku.place_if_valid(4, 8, Some(One)));
-    assert!(redoku.place_if_valid(5, 8, Some(Eight)));
-    assert!(redoku.place_if_valid(6, 8, Some(Two)));
-
-    redoku
+        ?,?,?, 2,4,3, 7,9,5,
+        ?,2,4, 9,7,6, 8,?,?,
+        ?,3,?, 5,1,8, 2,?,?,
+    ]
 }
 
 pub fn get_easy_redoku() -> Redoku {
+    // redoku![
+    //     ?,?,?, ?,?,?, ?,?,?,
+    //     ?,?,?, ?,?,?, ?,?,?,
+    //     ?,?,?, ?,?,?, ?,?,?,
+
+    //     ?,?,?, ?,?,?, ?,?,?,
+    //     ?,?,?, ?,?,?, ?,?,?,
+    //     ?,?,?, ?,?,?, ?,?,?,
+
+    //     ?,?,?, ?,?,?, ?,?,?,
+    //     ?,?,?, ?,?,?, ?,?,?,
+    //     ?,?,?, ?,?,?, ?,?,?,
+    // ]
+
     let mut redoku = Redoku::with_capacity(2);
 
     redoku.place_if_valid(0, 0, Some(Two));
@@ -166,6 +129,20 @@ pub fn get_easy_redoku() -> Redoku {
 }
 
 pub fn get_medium_redoku() -> Redoku {
+    // redoku![
+    //     ?,?,?, ?,?,?, ?,?,?,
+    //     ?,?,?, ?,?,?, ?,?,?,
+    //     ?,?,?, ?,?,?, ?,?,?,
+
+    //     ?,?,?, ?,?,?, ?,?,?,
+    //     ?,?,?, ?,?,?, ?,?,?,
+    //     ?,?,?, ?,?,?, ?,?,?,
+
+    //     ?,?,?, ?,?,?, ?,?,?,
+    //     ?,?,?, ?,?,?, ?,?,?,
+    //     ?,?,?, ?,?,?, ?,?,?,
+    // ]
+
     let mut redoku = Redoku::with_capacity(2);
 
     redoku.place_if_valid(1, 0, Some(Nine));
@@ -216,6 +193,20 @@ pub fn get_medium_redoku() -> Redoku {
 }
 
 pub fn get_hard_redoku() -> Redoku {
+    // redoku![
+    //     ?,?,?, ?,?,?, ?,?,?,
+    //     ?,?,?, ?,?,?, ?,?,?,
+    //     ?,?,?, ?,?,?, ?,?,?,
+
+    //     ?,?,?, ?,?,?, ?,?,?,
+    //     ?,?,?, ?,?,?, ?,?,?,
+    //     ?,?,?, ?,?,?, ?,?,?,
+
+    //     ?,?,?, ?,?,?, ?,?,?,
+    //     ?,?,?, ?,?,?, ?,?,?,
+    //     ?,?,?, ?,?,?, ?,?,?,
+    // ]
+
     let mut redoku = Redoku::with_capacity(13);
 
     redoku.place_if_valid(7, 0, Some(Three));
@@ -259,6 +250,20 @@ pub fn get_hard_redoku() -> Redoku {
 }
 
 pub fn get_evil_redoku() -> Redoku {
+    // redoku![
+    //     ?,?,?, ?,?,?, ?,?,?,
+    //     ?,?,?, ?,?,?, ?,?,?,
+    //     ?,?,?, ?,?,?, ?,?,?,
+
+    //     ?,?,?, ?,?,?, ?,?,?,
+    //     ?,?,?, ?,?,?, ?,?,?,
+    //     ?,?,?, ?,?,?, ?,?,?,
+
+    //     ?,?,?, ?,?,?, ?,?,?,
+    //     ?,?,?, ?,?,?, ?,?,?,
+    //     ?,?,?, ?,?,?, ?,?,?,
+    // ]
+
     let mut redoku = Redoku::with_capacity(13);
 
     redoku.place_if_valid(6, 1, Some(Five));
@@ -298,6 +303,20 @@ pub fn get_evil_redoku() -> Redoku {
 }
 
 pub fn get_evil_redoku2() -> Redoku {
+    // redoku![
+    //     ?,?,?, ?,?,?, ?,?,?,
+    //     ?,?,?, ?,?,?, ?,?,?,
+    //     ?,?,?, ?,?,?, ?,?,?,
+
+    //     ?,?,?, ?,?,?, ?,?,?,
+    //     ?,?,?, ?,?,?, ?,?,?,
+    //     ?,?,?, ?,?,?, ?,?,?,
+
+    //     ?,?,?, ?,?,?, ?,?,?,
+    //     ?,?,?, ?,?,?, ?,?,?,
+    //     ?,?,?, ?,?,?, ?,?,?,
+    // ]
+
     let mut redoku = Redoku::with_capacity(13);
 
     assert!(redoku.place_if_valid(0, 1, Some(Five)));
