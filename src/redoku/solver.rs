@@ -41,7 +41,7 @@ fn depth_first_search(redoku: &mut Redoku, x: u8, y: u8, unique: bool) -> Soluti
         }
 
         if redoku.is_completed() {
-            return Complete(redoku.clone(), iteration_counter.unwrap_or(0));
+            return Complete(redoku.clone(), iteration_counter.unwrap_or(0)); // TODO: Rewrite so clone not needed
         }
 
         if let Some(ref mut count) = iteration_counter {
@@ -52,12 +52,12 @@ fn depth_first_search(redoku: &mut Redoku, x: u8, y: u8, unique: bool) -> Soluti
             NonUnique => return NonUnique,
             Complete(redoku, iter_count) => {
                 if !unique {
-                    return Complete(redoku, iter_count);
+                    return Complete(redoku, iter_count + iteration_counter.unwrap_or(0));
                 }
 
                 match solution {
                     Some(Complete(_, _)) => return NonUnique,
-                    None => solution = Some(Complete(redoku, iteration_counter.unwrap_or(0) + iter_count)),
+                    None => solution = Some(Complete(redoku, iter_count + iteration_counter.unwrap_or(0))),
                     _ => unreachable!("Logic error: Solution set to non unique or incomplete")
                 }
 
@@ -123,6 +123,25 @@ fn test_previously_unsolvable() {
         1,7,2, 6,9,4, 3,5,8,
         4,3,8, 5,7,1, 9,2,6,
         5,9,6, 8,3,2, 7,1,4,
+    ];
+
+    assert!(redoku.has_solution(true));
+}
+
+#[test]
+fn test_previously_nonunique() {
+    let mut redoku = redoku![
+        ?,?,?, ?,?,?, ?,?,?,
+        ?,?,?, ?,?,?, ?,?,?,
+        6,7,1, 4,5,8, 9,2,3,
+
+        4,1,2, 3,9,6, 7,8,5,
+        7,9,5, 1,8,2, 6,3,4,
+        8,3,6, 5,7,4, 2,1,9,
+
+        1,2,3, 7,4,5, 8,9,6,
+        5,6,4, 8,2,9, 3,7,1,
+        9,8,7, 6,3,1, 4,5,2,
     ];
 
     assert!(redoku.has_solution(true));
