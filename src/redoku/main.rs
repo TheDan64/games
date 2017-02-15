@@ -70,24 +70,19 @@ fn main() {
     use value::Value::*;
     use solver::RedokuSolver;
 
-    let mut redoku = redoku::Redoku::new();
+    let redoku = redoku![
+        ?,?,?, ?,?,?, ?,?,?,
+        ?,?,?, ?,?,?, ?,?,8,
+        6,7,1, 4,5,8, 9,2,3,
 
-    redoku.place_if_valid(2, 1, Some(Five));
-    redoku.place_if_valid(2, 7, Some(Seven));
+        4,1,2, 3,9,6, 7,8,5,
+        7,9,5, 1,8,2, 6,3,4,
+        8,3,6, 5,7,4, 2,1,9,
 
-    redoku.place_if_valid(3, 4, Some(One));
-    redoku.place_if_valid(3, 8, Some(Nine));
-
-    redoku.place_if_valid(4, 3, Some(Seven));
-    redoku.place_if_valid(4, 4, Some(Eight));
-
-    redoku.place_if_valid(5, 3, Some(Four));
-    redoku.place_if_valid(5, 5, Some(Five));
-    redoku.place_if_valid(5, 7, Some(Three));
-
-    redoku.place_if_valid(6, 4, Some(Nine));
-
-    redoku.place_if_valid(7, 8, Some(Six));
+        1,2,3, 7,4,5, 8,9,6,
+        5,6,4, 8,2,9, 3,7,1,
+        9,8,7, 6,3,1, 4,5,2,
+    ];
 
     println!("Start:\n{:?}", redoku);
 

@@ -73,11 +73,17 @@ impl<'a> Iterator for Sequence<'a> {
 
                 self.pos = if (old_x == 1 || old_x == 8) && old_y % 2 != old_x / 8 {
                     (old_x - 1, old_y + 1)
+                } else if (old_x == 0 || old_x == 7) && old_y % 2 != old_x / 7 {
+                    (old_x + 1, old_y + 1)
                 } else if old_y % 2 == 0 {
                     (old_x + 2, old_y)
                 } else {
                     (old_x - 2, old_y)
                 };
+
+                if self.pos == (7, 9) {
+                    self.pos = (1, 0);
+                }
 
                 Some((old_x, old_y))
             },
@@ -111,11 +117,13 @@ impl<'a> Iterator for Sequence<'a> {
     }
 }
 
-fn build_sequence(difficulty: Difficulty, rand: &mut Randomizer) -> Sequence {
-    Sequence {
-        difficulty: difficulty,
-        pos: (0, 0),
-        rand: rand,
+impl<'a> Sequence<'a> {
+    fn new(difficulty: Difficulty, rand: &'a mut Randomizer) -> Self {
+        Sequence {
+            difficulty: difficulty,
+            pos: (0, 0),
+            rand: rand,
+        }
     }
 }
 
@@ -147,7 +155,7 @@ impl RedokuBuilder for Redoku {
 
         let mut completed_digs = 0;
 
-        for (x, y) in build_sequence(difficulty, rand) {
+        for (x, y) in Sequence::new(difficulty, rand) {
             print!("{}, {}", x, y);
             // Check restrictions
             if 81 - completed_digs == total_givens {
@@ -171,7 +179,9 @@ impl RedokuBuilder for Redoku {
 
             redoku.place_if_valid(x, y, None);
 
+
             if !redoku.has_solution(true) {
+                println!("{:?}", redoku);
                 redoku.place_if_valid(x, y, original_value);
                 println!(" Skipped 3");
 
@@ -189,7 +199,7 @@ impl RedokuBuilder for Redoku {
 
         if 81 - completed_digs > total_givens {
             // Bad!
-            panic!("Ayye");
+            // panic!("Ayye {} > {}", 81 - completed_digs, total_givens);
         }
 
         shuffle_redoku(&mut redoku, rand);
@@ -203,6 +213,10 @@ fn test_build_very_easy() {
     let mut rand = Randomizer::new(!0xADABCDEAD);
 
     let redoku = Redoku::build(Difficulty::VeryEasy, &mut rand);
+
+    let filled_cells = 81 - redoku.empty_cells();
+
+    assert!(50 <= filled_cells && filled_cells < 61);
 }
 
 #[test]
@@ -210,6 +224,10 @@ fn test_build_easy() {
     let mut rand = Randomizer::new(!0xADABCDEAD);
 
     let redoku = Redoku::build(Difficulty::Easy, &mut rand);
+
+    let filled_cells = 81 - redoku.empty_cells();
+
+    assert!(36 <= filled_cells && filled_cells < 50);
 }
 
 #[test]
@@ -217,6 +235,10 @@ fn test_build_medium() {
     let mut rand = Randomizer::new(!0xADABCDEAD);
 
     let redoku = Redoku::build(Difficulty::Medium, &mut rand);
+
+    let filled_cells = 81 - redoku.empty_cells();
+
+    assert!(32 <= filled_cells && filled_cells < 36);
 }
 
 #[test]
@@ -225,6 +247,10 @@ fn test_build_hard() {
                                                   // 0xE15495FAEFEBBBDD -> 39 instead of 29
 
     let redoku = Redoku::build(Difficulty::Hard, &mut rand);
+
+    let filled_cells = 81 - redoku.empty_cells();
+
+    assert!(28 <= filled_cells && filled_cells < 32);
 }
 
 #[test]
@@ -232,6 +258,10 @@ fn test_build_evil() {
     let mut rand = Randomizer::new(!0xADABCDEAD);
 
     let redoku = Redoku::build(Difficulty::Evil, &mut rand);
+
+    let filled_cells = 81 - redoku.empty_cells();
+
+    assert!(22 <= filled_cells && filled_cells < 28);
 }
 
 #[test]
@@ -240,7 +270,7 @@ fn test_sequence_easy() {
     let mut x_set = ValueSet::new(0);
     let mut y_set = ValueSet::new(0);
 
-    for (x, y) in build_sequence(Difficulty::Easy, &mut rand) {
+    for (x, y) in Sequence::new(Difficulty::Easy, &mut rand) {
         x_set.insert(x.into());
         y_set.insert(y.into());
 
@@ -255,7 +285,7 @@ fn test_sequence_medium() { // FIXME
     let mut count = 0;
     let mut rand = Randomizer::new(0xBEEF);
 
-    for (x, y) in build_sequence(Difficulty::Medium, &mut rand) {
+    for (x, y) in Sequence::new(Difficulty::Medium, &mut rand) {
         println!("{:?}", (x, y));
         // assert!(x < 9 && y < 9 && x + y * 9 == count);
 
@@ -270,7 +300,7 @@ fn test_sequence_hard() { // FIXME
     let mut count = 0;
     let mut rand = Randomizer::new(0xBEEF);
 
-    for (x, y) in build_sequence(Difficulty::Hard, &mut rand) {
+    for (x, y) in Sequence::new(Difficulty::Hard, &mut rand) {
         println!("{:?}", (x, y));
         // assert!(x < 9 && y < 9 && x + y * 9 == count);
 
@@ -285,7 +315,7 @@ fn test_sequence_evil() {
     let mut count = 0;
     let mut rand = Randomizer::new(0xBEEF);
 
-    for (x, y) in build_sequence(Difficulty::Evil, &mut rand) {
+    for (x, y) in Sequence::new(Difficulty::Evil, &mut rand) {
         assert!(x < 9 && y < 9 && x + y * 9 == count);
 
         count += 1;
