@@ -159,11 +159,13 @@ impl RedokuBuilder for Redoku {
             print!("{}, {}", x, y);
             // Check restrictions
             if 81 - completed_digs == total_givens {
-                println!("reached max givens");
+                println!("reached max givens: {}", total_givens);
                 break;
             }
 
-            // TODO: Ensure cell is != None, which can be true for the random sequences
+            if redoku[(x, y)].is_none() {
+                continue;
+            }
 
             if redoku.row_values(y).len() == lower_bound_row_col_givens {
                 println!(" Hit lower bound in row {}. Skipped.", y);
@@ -178,7 +180,6 @@ impl RedokuBuilder for Redoku {
             let original_value = redoku[(x, y)];
 
             redoku.place_if_valid(x, y, None);
-
 
             if !redoku.has_solution(true) {
                 println!("{:?}", redoku);
@@ -292,7 +293,7 @@ fn test_sequence_medium() { // FIXME
         count += 1;
     }
 
-    assert!(count == 41);
+    assert!(count == 81);
 }
 
 #[test]
