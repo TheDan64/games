@@ -3,6 +3,7 @@ use grader::{Difficulty, RedokuGrader};
 use redoku::Redoku;
 use solver::RedokuSolver;
 use utils::{random_cell_value, read_u8_in_range};
+use std::collections::HashSet;
 #[cfg(test)]
 use value::{Value, ValueSet};
 
@@ -200,7 +201,7 @@ impl RedokuBuilder for Redoku {
 
         if 81 - completed_digs > total_givens {
             // Bad!
-            // panic!("Ayye {} > {}", 81 - completed_digs, total_givens);
+            panic!("Ayye {} > {}", 81 - completed_digs, total_givens);
         }
 
         shuffle_redoku(&mut redoku, rand);
@@ -268,14 +269,12 @@ fn test_build_evil() {
 #[test]
 fn test_sequence_easy() {
     let mut rand = Randomizer::new(0xBEEF);
-    let mut x_set = ValueSet::new(0);
-    let mut y_set = ValueSet::new(0);
+    let mut set = HashSet::with_capacity(81);
 
     for (x, y) in Sequence::new(Difficulty::Easy, &mut rand) {
-        x_set.insert(x.into());
-        y_set.insert(y.into());
+        set.insert((x, y));
 
-        if x_set.is_full() && y_set.is_full() {
+        if set.len() == 81 {
             break;
         }
     }
@@ -297,13 +296,16 @@ fn test_sequence_medium() { // FIXME
 }
 
 #[test]
-fn test_sequence_hard() { // FIXME
+fn test_sequence_hard() {
     let mut count = 0;
     let mut rand = Randomizer::new(0xBEEF);
 
     for (x, y) in Sequence::new(Difficulty::Hard, &mut rand) {
-        println!("{:?}", (x, y));
-        // assert!(x < 9 && y < 9 && x + y * 9 == count);
+        if y % 2 == 0 {
+            assert!(x < 9 && y < 9 && x + y * 9 == count);
+        } else {
+            assert!(x < 9 && y < 9 && (8 - x) + y * 9 == count);
+        }
 
         count += 1;
     }
