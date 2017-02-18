@@ -183,7 +183,7 @@ impl RedokuBuilder for Redoku {
             redoku.place_if_valid(x, y, None);
 
             if !redoku.has_solution(true) {
-                println!("{:?}", redoku);
+                // println!("{:?}", redoku);
                 redoku.place_if_valid(x, y, original_value);
                 println!(" Skipped 3");
 
@@ -281,13 +281,18 @@ fn test_sequence_easy() {
 }
 
 #[test]
-fn test_sequence_medium() { // FIXME
+fn test_sequence_medium() {
     let mut count = 0;
     let mut rand = Randomizer::new(0xBEEF);
 
     for (x, y) in Sequence::new(Difficulty::Medium, &mut rand) {
-        println!("{:?}", (x, y));
-        // assert!(x < 9 && y < 9 && x + y * 9 == count);
+        let offset = if count < 41 { 0 } else { 41 };
+
+        if y % 2 == 0 {
+            assert!(x < 9 && y < 9 && (x + y * 9) / 2 == count - offset);
+        } else {
+            assert!(x < 9 && y < 9 && ((8 - x) + y * 9) / 2 == count - offset);
+        }
 
         count += 1;
     }

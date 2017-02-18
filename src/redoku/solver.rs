@@ -110,25 +110,6 @@ impl RedokuSolver for Redoku {
 }
 
 #[test]
-fn test_previously_unsolvable() {
-    let redoku = redoku![
-        ?,?,?, ?,?,?, ?,9,5,
-        3,4,?, ?,?,?, ?,?,?,
-        ?,?,?, ?,?,?, 1,4,3,
-
-        9,1,3, 4,6,8, 5,7,2,
-        2,5,4, 7,1,3, 6,8,9,
-        8,6,7, 9,2,5, 4,3,1,
-
-        1,7,2, 6,9,4, 3,5,8,
-        4,3,8, 5,7,1, 9,2,6,
-        5,9,6, 8,3,2, 7,1,4,
-    ];
-
-    assert!(redoku.has_solution(true));
-}
-
-#[test]
 fn test_previously_nonunique() {
     let mut redoku = redoku![
         ?,?,?, ?,?,?, ?,?,?,
